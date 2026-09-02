@@ -12,21 +12,33 @@
 - 禁止 SSH、部署或改变集群状态；真实 smoke 没有授权时只能记 `not_verified`。
 - 每批必须创建或更新 `docs/execution/records/<ID>.md`，记录 baseline、allow/deny paths、命令、结果、未验证项和回滚。
 - 完成后只更新 `docs/execution/status.md`；不会自动开始下一个 Goal。
+- 冻结技术栈以 `docs/design/realtime-session-gateway-p0-v1.2.md` 为准，禁止静默替换依赖或增加自研 framework。
+- 生产/部署 Session Store 固定 Redis；MemoryStore 只允许 contract tests/显式本地开发，禁止自动降级。
+
+## 恢复已暂停的 SG-P0-LOCAL
+
+当前恢复合同已写入 `docs/execution/resume-SG-P0-LOCAL.md`，并已发送到原 Goal 任务。用户只需在原任务输入：
+
+```text
+/goal resume
+```
+
+恢复后必须先完成 `SG-0A-TECH-BASELINE`，再从工作树真实进度继续 SG-1～SG-4。不要 `/goal clear`，不要启动第二个实现 Goal。
 
 ## SG-0：仓库骨架与内部契约
 
 启动前替换：
 
 ```text
-<MODULE_PATH>  例如 github.com/<owner>/ani-session-gateway；必须是用户已决定的最终路径
+MODULE_PATH 已固定为 github.com/zhangzhe-ctrl/ani-session-gateway；不得再使用占位符或旧路径
 ```
 
 ```text
-/goal 在 /home/chabking/workspace/ani-session-gateway 完成且只完成 Work Package SG-0：建立根实现 Go module、独立 api Go submodule、内部 CreateSession gRPC 契约、双 listener、配置校验、health/readiness/metrics、容器构建骨架。持续工作直到 SG-0 的本地验证全部通过；完成后停止，不开始 SG-1。
+/goal 在 /home/chabking/workspace/ani-session-gateway 完成且只完成 Work Package SG-0：建立根实现 Go module、独立 api Go submodule、内部 CreateSession gRPC 契约、双 listener、chi Router、OpenTelemetry 初始化、配置校验、health/readiness/metrics、容器构建骨架。持续工作直到 SG-0 的本地验证全部通过；完成后停止，不开始 SG-1。
 
 固定输入：
-- MODULE_PATH=<MODULE_PATH>
-- 设计合同：docs/design/realtime-session-gateway-p0-v1.1.md
+- MODULE_PATH=github.com/zhangzhe-ctrl/ani-session-gateway
+- 设计合同：docs/design/realtime-session-gateway-p0-v1.2.md
 - 当前状态：docs/execution/status.md
 
 开始前完整读取 AGENTS.md、CLAUDE.md、设计合同和状态文件；确认 active_work_package 为空、MODULE_PATH 已替换且工作树不存在未知冲突。把 active_work_package 更新为 SG-0，并创建 docs/execution/records/SG-0.md。
@@ -34,22 +46,23 @@
 允许修改：
 - api/go.mod、api/proto/**、api/gen/**
 - 根 go.mod/go.sum、buf.yaml、buf.gen.yaml
-- cmd/session-gateway/**、internal/config/**、internal/transport/grpc/**、internal/observability/**
+- cmd/session-gateway/**、internal/config/**、internal/transport/http/**、internal/transport/grpc/**、internal/observability/**
 - Dockerfile、Makefile、README.md、.github/workflows/**
 - docs/websocket-protocol.md、docs/execution/status.md、docs/execution/records/SG-0.md
 
 禁止：
 - Redis/Memory SessionStore 业务实现、WebSocket session route、client-go、KubeVirt、ANI 仓库改动和 Kubernetes 部署清单
-- 修改 v1.1 设计决定，新增延期能力
+- 修改 v1.2 设计决定，新增延期能力
 - git add/commit/remote/push/tag、SSH、部署或读取敏感凭据
 
 必须实现：
-1. 根 module 为 <MODULE_PATH>，api submodule 为 <MODULE_PATH>/api；API submodule 只依赖 protobuf/grpc 最小集合。
-2. proto 使用 v1.1 的单一 CreateSession interface、oneof mode、typed WorkloadKind 和稳定字段编号；生成代码进入 api/gen/session/v1。
-3. HTTP listener 暴露 /healthz、/readyz、/metrics；gRPC listener 注册 SessionService，但 SG-0 未实现的 CreateSession 明确返回 Unimplemented，不能伪造 URL。
+1. 根 module 为 `github.com/zhangzhe-ctrl/ani-session-gateway`，api submodule 为 `github.com/zhangzhe-ctrl/ani-session-gateway/api`；API submodule 只依赖 protobuf/grpc 最小集合。
+2. proto 使用 v1.2 的单一 CreateSession interface、oneof mode、typed WorkloadKind 和稳定字段编号；生成代码进入 api/gen/session/v1。
+3. HTTP listener 使用单一 `go-chi/chi/v5` Router 暴露 /healthz、/readyz、/metrics；gRPC listener 注册 SessionService，但 SG-0 未实现的 CreateSession 明确返回 Unimplemented，不能伪造 URL。
 4. 配置对 PUBLIC_WS_BASE_URL、ALLOWED_ORIGINS、地址、时间窗口和 key file path 做 fail-fast 解析；不在日志输出敏感值。
 5. Dockerfile 以 non-root 运行并兼容只读 root filesystem。
-6. Makefile 提供 generate、lint、test、vet、build、check-generated 和 diff-check 等可重复入口。
+6. 初始化/关闭 OpenTelemetry tracer provider；敏感字段不进入 span；无 collector 时 export smoke 记 not_verified。
+7. Makefile 提供 generate、lint、test、vet、build、check-generated 和 diff-check 等可重复入口。
 
 验证：
 - buf lint
@@ -65,14 +78,14 @@
 完成条件：全部本地门禁通过、记录文件含真实命令和结果、status 标为 SG-0 LOCAL_VERIFIED 并把 active_work_package 清空。缺少依赖或环境时穷尽本地可行验证后标 not_verified；只有 MODULE_PATH 未提供、设计冲突或需要扩大权限时才报告阻断。
 ```
 
-## SG-1：SessionManager 与 Redis/Memory Store
+## SG-1：SessionManager 与 Redis Store
 
 启动前替换 `<SG0_COMMIT>` 为用户提交 SG-0 后的精确 commit。
 
 ```text
-/goal 在 /home/chabking/workspace/ani-session-gateway 完成且只完成 Work Package SG-1：实现 SessionManager、ticket 加密/摘要、幂等状态机，以及 MemoryStore/RedisStore 的同一契约。持续工作直到 SG-1 全部门禁通过；完成后停止，不开始 SG-2。
+/goal 在 /home/chabking/workspace/ani-session-gateway 完成且只完成 Work Package SG-1：实现 SessionManager、ticket 加密/摘要、幂等状态机、生产 RedisStore，以及仅用于 contract tests/显式本地开发的 MemoryStore。持续工作直到 SG-1 全部门禁通过；完成后停止，不开始 SG-2。
 
-基线：SG-0 精确 commit=<SG0_COMMIT>。先读取 AGENTS.md、CLAUDE.md、v1.1 设计、status 和 SG-0 record；确认 HEAD 精确匹配且工作树没有未知冲突。设置 active_work_package=SG-1，创建 docs/execution/records/SG-1.md。
+基线：SG-0 精确 commit=<SG0_COMMIT>。先读取 AGENTS.md、CLAUDE.md、v1.2 设计、status 和 SG-0 record；确认 HEAD 精确匹配且工作树没有未知冲突。设置 active_work_package=SG-1，创建 docs/execution/records/SG-1.md。
 
 允许修改：internal/session/**、internal/store/memory/**、internal/store/redis/**、internal/config 中 SG-1 配置、对应测试、Makefile/go.mod/go.sum、status 和 SG-1 record。
 
@@ -84,9 +97,9 @@
 - CreateOrGet：issued 且未过期时同键同 fingerprint 重放同一 ticket；不同 fingerprint conflict；claimed/expired/closed 返回 failed precondition。
 - ClaimAndReserve：ticket 比对、expiry、状态转换、全局/subject 容量和 lease 在 Redis 中单次原子完成；Memory 语义一致。
 - CloseAndRelease 幂等；重复关闭不产生负计数；过期 lease 和模拟进程崩溃可回收容量。
-- STORE_MODE 只在启动时选择，运行中 Redis 失败绝不热切 Memory。
+- STORE_MODE 默认 redis，只允许 redis|memory；删除 auto。Redis 配置/PING 失败时 fail fast，运行中失败绝不热切 Memory；Memory 只允许显式本地开发并标 local/degraded。
 
-至少验证：100 并发 claim 仅一个成功、同键重放、fingerprint conflict、claim 后重放、ticket tombstone、全局/subject 容量、lease 回收、重复 close、Redis 启动/运行中断、auto 固定选择、明文 ticket 搜索为零、race test、go test ./...、go vet ./...、git diff --check。Redis 真实 integration test 若本机依赖不可用必须记 not_verified，不能用 fake 冒充。
+至少验证：100 并发 claim 仅一个成功、同键重放、fingerprint conflict、claim 后重放、ticket tombstone、全局/subject 容量、lease 回收、重复 close、Redis 启动/运行中断、无 auto/fallback 路径、明文 ticket 搜索为零、race test、go test ./...、go vet ./...、git diff --check。Redis 真实 integration test 若本机依赖不可用必须记 not_verified，不能用 fake 冒充。
 
 完成时写 SG-1 record，status 标 SG-1 LOCAL_VERIFIED 或明确 not_verified 项，清空 active_work_package。不得自动开始 SG-2。
 ```
@@ -96,13 +109,13 @@
 ```text
 /goal 在 /home/chabking/workspace/ani-session-gateway 完成且只完成 Work Package SG-2：实现一次性 ticket WebSocket transport、JSON terminal protocol、Pod resolver 和 Kubernetes exec Adapter。持续工作直到本地/集成门禁通过；完成后停止，不开始 SG-3，也不访问真实集群。
 
-基线：使用用户批准的 SG-1 精确 commit=<SG1_COMMIT>。先读取 AGENTS.md、CLAUDE.md、v1.1 设计、status、SG-0/SG-1 records并确认干净基线。设置 active_work_package=SG-2，创建 SG-2 record。
+基线：使用用户批准的 SG-1 精确 commit=<SG1_COMMIT>。先读取 AGENTS.md、CLAUDE.md、v1.2 设计、status、SG-0/SG-0A/SG-1 records并确认干净基线。设置 active_work_package=SG-2，创建 SG-2 record。
 
 允许修改：internal/transport/websocket/**、internal/runtime/kubernetes/**、internal/session 为接线所需的最小改动、配置/指标/测试、go.mod/go.sum、Makefile、docs/websocket-protocol.md、status 和 SG-2 record。
 
 禁止：KubeVirt、部署清单、ANI、Console、真实 SSH/集群、GitHub 写入和延期能力。
 
-必须实现：Origin 精确白名单、upgrade 前 ClaimAndReserve、query/ticket 日志脱敏、frame 上限、stdin/resize 校验、ping/pong、idle/max-duration、背压、脱敏 error+1011、graceful close；namespace 确定性推导、tenant+instance 双 label、Running/Ready/non-terminating Pod 选择、container 歧义拒绝；ExecStream 隐藏 remotecommand 类型并支持 stdin/stdout/stderr/resize/wait/close。
+必须使用单一 chi Router 注册 route、`github.com/coder/websocket` 处理 WebSocket、`k8s.io/client-go/tools/remotecommand` 实现 Pod exec。必须实现：Origin 精确白名单、upgrade 前 ClaimAndReserve、query/ticket/trace 脱敏、frame 上限、stdin/resize 校验、ping/pong、idle/max-duration、背压、脱敏 error+1011、graceful close；namespace 确定性推导、tenant+instance 双 label、Running/Ready/non-terminating Pod 选择、container 歧义拒绝；ExecStream 隐藏 remotecommand 类型并支持 stdin/stdout/stderr/resize/wait/close。
 
 测试使用 fake ExecRuntime 和受控 Kubernetes HTTP/SPDY seam 分层验证，不要求 WebSocket 测试穿透真实 provider。至少覆盖并发 claim、错误 Origin、过期 ticket、ticket 重放、超限、慢客户端、帧过大、非 Ready Pod、跨 tenant、container 歧义、TTY stderr 合并、resize、超时和日志脱敏。运行 go test -race ./...、go vet ./...、生成/协议检查和 git diff --check。真实 kind/集群 smoke 明确记 not_verified。
 
@@ -120,7 +133,7 @@
 
 禁止：把 RFB 包进 JSON/base64、把 noVNC 静态站点放入 Gateway、Kubernetes 部署清单、ANI/Console 修改、SSH/真实集群、GitHub 写入。
 
-必须实现：连接前读取并验证 VMI namespace/name/Running；provider 使用 plain.kubevirt.io；serial 用 ByteStream 转 JSON stdout/stdin；VNC 使用透明 binary frames；任一路径都必须继承一次性 claim、容量 lease、deadline、背压、关闭与脱敏不变量。
+必须使用 `kubevirt.io/client-go`。连接前读取并验证 VMI namespace/name/Running；provider 使用 plain.kubevirt.io；serial 用 ByteStream 转 JSON stdout/stdin；VNC 使用透明 binary frames；任一路径都必须继承一次性 claim、容量 lease、deadline、背压、关闭、OpenTelemetry 与脱敏不变量。
 
 至少覆盖：serial 双向字节、binary frame bit-for-bit、RFB handshake fixture、键鼠字节不被转换、ticket 重放、跨 tenant、非 Running VMI、provider error 脱敏、连接关闭释放 lease、go test -race ./...、go vet ./...、git diff --check。真实 KubeVirt smoke 没有本 Goal 的集群授权，必须记 not_verified。
 
@@ -138,7 +151,7 @@
 
 禁止：kubectl apply/patch/delete/rollout、SSH、读取 kubeconfig/Secret、修改 ANI、配置固定公网 IP、声称 NodePort 30081 已可用、GitHub 写入。
 
-清单必须：gRPC ClusterIP 与 WS NodePort 分离；memory/auto 默认 replicas=1；gRPC ingress 同时限制 ani-system namespace 与 ani-gateway pod selector；egress 明确 DNS、Redis、Kubernetes API/virt-api；ClusterRole 只含 pods get/list、pods/exec create、VMI get、console/vnc subresource get；禁止 Secret read、Pod delete、VM write、wildcard；non-root、read-only rootfs、drop capabilities、seccomp、资源限制、probes、termination grace 和 key Secret volume 均闭合。NodePort 30081 只是 planned value并带部署前查重门禁。
+清单必须：gRPC ClusterIP 与 WS NodePort 分离；STORE_MODE 固定 redis、REDIS_URL 来自受控配置且禁止 memory/auto；包含 Prometheus 与 OpenTelemetry 环境配置；gRPC ingress 同时限制 ani-system namespace 与 ani-gateway pod selector；egress 明确 DNS、Redis、Kubernetes API/virt-api 和配置的 OTLP collector；ClusterRole 只含 pods get/list、pods/exec create、VMI get、console/vnc subresource get；禁止 Secret read、Pod delete、VM write、wildcard；non-root、read-only rootfs、drop capabilities、seccomp、资源限制、probes、termination grace 和 key Secret volume均闭合。NodePort 30081 只是 planned value并带部署前查重门禁。
 
 运行可用的 YAML/schema、Kustomize/Helm（若实际采用）、kubectl client dry-run、RBAC 静态正反向测试、NetworkPolicy selector/egress 测试、go test/vet 和 git diff --check。没有集群时 kubectl auth can-i、外部 9090 拒绝和 NodePort 可达都记 not_verified。
 
@@ -147,18 +160,18 @@
 
 ## ANI-GW-1：ANI Gateway gRPC 接入
 
-启动前替换全部占位符。`<API_VERSION>` 必须是用户已手工发布且可解析的固定 `api/v0.1.0` 或精确 pseudo-version。
+启动前替换剩余占位符。Git tag `api/v0.1.0` 对应 Go module version `v0.1.0`；`SESSION_API_VERSION` 必须填写可解析的 `v0.1.0` 或精确 pseudo-version，禁止填写 `api/v0.1.0`。
 
 ```text
 /goal 在 /home/chabking/workspace/ANI 完成且只完成 Work Package ANI-GW-1：保持既有 Core REST 产品契约兼容，把 exec/console 的占位 URL 签发替换为 ani-session-gateway 内部 gRPC client，并拆分 InstanceObservability 与 InstanceSessionIssuer seam。持续工作直到 ANI 本地门禁全部通过；完成后停止，不修改 Console、不部署。
 
 固定输入：
 - ANI_BASELINE=<ANI_APPROVED_EXACT_COMMIT，当前已知候选为 963bc88836c54a1b09cf100b37eb2f2cb2a5a4be>
-- SESSION_API_MODULE=<MODULE_PATH>/api
+- SESSION_API_MODULE=github.com/zhangzhe-ctrl/ani-session-gateway/api
 - SESSION_API_VERSION=<API_VERSION>
 - SESSION_GATEWAY_REPO_COMMIT=<SG4_EXACT_COMMIT>
 
-先完整读取 ANI/AGENTS.md、CLAUDE.md、ANI-DOCS-INDEX.md、repo/CURRENT-SPRINT.md、ANI-06-开发计划.md Section 零、相关 OpenAPI/ports/adapter/router/frontend现状，以及 Session Gateway v1.1 设计和 SG-0～SG-4 records。确认 ANI HEAD 精确等于批准 baseline；不得用 moving main/latest 替代。记录并保护开始时所有已存在的修改和未跟踪文件，尤其不得修改、删除、暂存或提交与本批无关的文档。
+先完整读取 ANI/AGENTS.md、CLAUDE.md、ANI-DOCS-INDEX.md、repo/CURRENT-SPRINT.md、ANI-06-开发计划.md Section 零、相关 OpenAPI/ports/adapter/router/frontend现状，以及 Session Gateway v1.2 设计和 SG-0～SG-4 records。确认 ANI HEAD 精确等于批准 baseline；不得用 moving main/latest 替代。记录并保护开始时所有已存在的修改和未跟踪文件，尤其不得修改、删除、暂存或提交与本批无关的文档。
 
 允许修改：
 - repo/api/openapi/v1.yaml 及由兼容性 additive 修改必需的生成物
@@ -181,11 +194,10 @@
 3. 固定版本 gRPC Adapter 传 tenant、subject、真实 instance ID、record.Name、typed kind、request ID 和 mode options；绝不传 namespace、Pod/VMI URL或 credential。
 4. exec 检查 kind、running、command、rows/cols；console 保留 VM/running/protocol 检查。auth/RBAC denied 请求绝不调用 gRPC。
 5. console 优先透传客户端 idempotency_key；当前兼容客户端省略时生成内部 UUID并明确不保证跨 HTTP 重试。
-6. gRPC 错误按 v1.1 映射；未配置 SESSION_GATEWAY_GRPC_ADDR 或依赖不可用时 real provider 返回 503，不生成假 URL。
+6. gRPC 错误按 v1.2 映射；未配置 SESSION_GATEWAY_GRPC_ADDR 或依赖不可用时 real provider 返回 503，不生成假 URL。
 7. 成功响应维持既有 schema并设置 dev_profile.real_provider=true；Local profile 明确 real_provider=false。
 
 至少验证：focused handler/client/runtime tests、denied-never-calls、请求映射、全部错误映射、OpenAPI YAML/生成漂移、Core API compatibility、gateway authz、make test、make validate-architecture、make validate-doc-entrypoints、相关仓库门禁和 git diff --check。Session Gateway 未运行时允许使用 in-process fake gRPC server验证 contract；不得把它记为 live。
 
 完成时新增 ANI development record，列出精确 Session API version、ANI baseline、命令与结果、not_verified live 项和回滚方式；按 ANI 规则更新索引/CURRENT-SPRINT/ANI-06。不要提交或部署，不要开始 CONSOLE-1。
 ```
-

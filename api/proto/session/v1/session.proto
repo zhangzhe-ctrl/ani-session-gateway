@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package ani.session.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/zhangzhe-ctrl/ani-session-gateway/api/gen/session/v1;sessionv1";
+
+service SessionService {
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+}
+
+message CreateSessionRequest {
+  string request_id = 1;
+  string idempotency_key = 2;
+  Principal principal = 3;
+  Target target = 4;
+  oneof mode {
+    ExecOptions exec = 5;
+    VMConsoleOptions vm_console = 6;
+  }
+}
+
+message Principal {
+  string tenant_id = 1;
+  string subject_id = 2;
+}
+
+message Target {
+  string instance_id = 1;
+  string workload_name = 2;
+  WorkloadKind workload_kind = 3;
+}
+
+enum WorkloadKind {
+  WORKLOAD_KIND_UNSPECIFIED = 0;
+  WORKLOAD_KIND_CONTAINER = 1;
+  WORKLOAD_KIND_GPU_CONTAINER = 2;
+  WORKLOAD_KIND_SANDBOX = 3;
+  WORKLOAD_KIND_VM = 4;
+}
+
+message ExecOptions {
+  string container = 1;
+  repeated string command = 2;
+  bool tty = 3;
+  int32 rows = 4;
+  int32 cols = 5;
+}
+
+message VMConsoleOptions {
+  enum Protocol {
+    PROTOCOL_UNSPECIFIED = 0;
+    PROTOCOL_SERIAL = 1;
+    PROTOCOL_VNC = 2;
+  }
+  Protocol protocol = 1;
+  string requested_protocol = 2;
+}
+
+message CreateSessionResponse {
+  string session_id = 1;
+  string connect_url = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  bool replayed = 4;
+}

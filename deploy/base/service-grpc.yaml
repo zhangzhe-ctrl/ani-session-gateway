@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ani-session-gateway-grpc
+  labels:
+    app.kubernetes.io/name: ani-session-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ani-session-gateway
+  ports:
+    - name: grpc
+      port: 9090
+      targetPort: grpc
+      protocol: TCP
+

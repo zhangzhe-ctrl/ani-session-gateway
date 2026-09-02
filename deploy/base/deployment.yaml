@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ani-session-gateway
+  labels:
+    app.kubernetes.io/name: ani-session-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ani-session-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ani-session-gateway
+    spec:
+      serviceAccountName: ani-session-gateway
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: session-gateway
+          image: ghcr.io/kubercloud/ani-session-gateway:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: grpc
+              containerPort: 9090
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ani-session-gateway
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ani-session-gateway-secrets
+                  key: redis-url
+            - name: TICKET_ENCRYPTION_KEY_FILE
+              value: /var/run/secrets/ani-session-gateway/ticket.key
+          volumeMounts:
+            - name: ticket-key
+              mountPath: /var/run/secrets/ani-session-gateway
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: ticket-key
+          secret:
+            secretName: ani-session-gateway-secrets
+            defaultMode: 0400
+            items:
+              - key: ticket-encryption-key
+                path: ticket.key
+

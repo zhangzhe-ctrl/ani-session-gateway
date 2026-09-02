@@ -1,0 +1,13 @@
+version: v2
+modules:
+  - path: api/proto
+lint:
+  use:
+    - STANDARD
+  except:
+    # The v1.1 contract fixes the source path at session/v1 while the package
+    # carries the organization prefix ani.session.v1.
+    - PACKAGE_DIRECTORY_MATCH
+breaking:
+  use:
+    - FILE

@@ -5,7 +5,7 @@
 ## Required reading
 
 1. 完整读取 `CLAUDE.md`。
-2. 完整读取 `docs/design/realtime-session-gateway-p0-v1.1.md`。
+2. 完整读取 `docs/design/realtime-session-gateway-p0-v1.2.md`；v1.1 仅为历史版本。
 3. 读取 `docs/execution/status.md`。
 4. 只执行用户明确启动的一个 Goal/Work Package。
 
@@ -17,9 +17,8 @@
 
 ## Stable routes
 
-- 设计合同：`docs/design/realtime-session-gateway-p0-v1.1.md`
+- 设计合同：`docs/design/realtime-session-gateway-p0-v1.2.md`
 - 执行状态：`docs/execution/status.md`
 - Goal 模板：`docs/execution/goal-prompts.md`
 - 批次证据：`docs/execution/records/`
 - Agent 长期约束：`CLAUDE.md`
-

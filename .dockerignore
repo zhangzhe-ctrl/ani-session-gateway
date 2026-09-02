@@ -1,0 +1,9 @@
+.git
+.bin
+.env
+.env.*
+session-gateway
+coverage
+coverage.out
+*.key
+*.pem

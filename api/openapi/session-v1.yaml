@@ -1,0 +1,79 @@
+openapi: 3.1.0
+info:
+  title: ANI Realtime Session Gateway Internal API
+  version: 0.1.0
+  description: Contract projection of the internal gRPC CreateSession interface.
+paths:
+  /ani.session.v1.SessionService/CreateSession:
+    post:
+      operationId: createSession
+      summary: Issue or replay a one-time realtime session ticket.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '200':
+          description: Session issued or replayed while still claimable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+        '409': {description: Idempotency key conflicts with another fingerprint.}
+        '422': {description: Session is no longer claimable.}
+        '429': {description: Capacity exhausted.}
+        '503': {description: Store or runtime dependency unavailable.}
+components:
+  schemas:
+    Principal:
+      type: object
+      required: [tenantId, subjectId]
+      properties:
+        tenantId: {type: string}
+        subjectId: {type: string}
+    Target:
+      type: object
+      required: [instanceId, workloadName, workloadKind]
+      properties:
+        instanceId: {type: string}
+        workloadName: {type: string}
+        workloadKind:
+          type: string
+          enum: [WORKLOAD_KIND_CONTAINER, WORKLOAD_KIND_GPU_CONTAINER, WORKLOAD_KIND_SANDBOX, WORKLOAD_KIND_VM]
+    ExecOptions:
+      type: object
+      properties:
+        container: {type: string}
+        command: {type: array, items: {type: string}}
+        tty: {type: boolean}
+        rows: {type: integer, format: int32}
+        cols: {type: integer, format: int32}
+    VMConsoleOptions:
+      type: object
+      required: [protocol]
+      properties:
+        protocol: {type: string, enum: [PROTOCOL_SERIAL, PROTOCOL_VNC]}
+        requestedProtocol: {type: string}
+    CreateSessionRequest:
+      type: object
+      required: [principal, target]
+      properties:
+        requestId: {type: string}
+        idempotencyKey: {type: string}
+        principal: {$ref: '#/components/schemas/Principal'}
+        target: {$ref: '#/components/schemas/Target'}
+        exec: {$ref: '#/components/schemas/ExecOptions'}
+        vmConsole: {$ref: '#/components/schemas/VMConsoleOptions'}
+      oneOf:
+        - required: [exec]
+        - required: [vmConsole]
+    CreateSessionResponse:
+      type: object
+      required: [sessionId, connectUrl, expiresAt, replayed]
+      properties:
+        sessionId: {type: string}
+        connectUrl: {type: string, format: uri}
+        expiresAt: {type: string, format: date-time}
+        replayed: {type: boolean}

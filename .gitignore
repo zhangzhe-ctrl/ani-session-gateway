@@ -12,9 +12,10 @@ go.work.sum
 /dist/
 /coverage/
 coverage.out
+/.bin/
+/session-gateway
 
 # Editor and OS
 .idea/
 .vscode/
 .DS_Store
-
