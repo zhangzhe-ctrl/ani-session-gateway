@@ -1,0 +1,20 @@
+# Local workspace and secrets
+.env
+.env.*
+!.env.example
+go.work
+go.work.sum
+*.key
+*.pem
+
+# Build and coverage
+/bin/
+/dist/
+/coverage/
+coverage.out
+
+# Editor and OS
+.idea/
+.vscode/
+.DS_Store
+
