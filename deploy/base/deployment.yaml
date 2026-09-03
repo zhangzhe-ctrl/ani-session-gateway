@@ -19,11 +19,15 @@ spec:
       terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: session-gateway
-          image: ghcr.io/kubercloud/ani-session-gateway:0.1.0
+          image: docker.changqingyun.cn/ani/ani-session-gateway:d86a40d33369
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -77,8 +81,7 @@ spec:
         - name: ticket-key
           secret:
             secretName: ani-session-gateway-secrets
-            defaultMode: 0400
+            defaultMode: 0440
             items:
               - key: ticket-encryption-key
                 path: ticket.key
-

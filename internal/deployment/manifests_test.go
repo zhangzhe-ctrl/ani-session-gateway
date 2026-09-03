@@ -135,7 +135,7 @@ func assertDeployment(t *testing.T, deployment *appsv1.Deployment) {
 		t.Fatal("Deployment replicas or ServiceAccount is invalid")
 	}
 	pod := deployment.Spec.Template.Spec
-	if pod.TerminationGracePeriodSeconds == nil || *pod.TerminationGracePeriodSeconds <= 25 || pod.SecurityContext == nil || pod.SecurityContext.RunAsNonRoot == nil || !*pod.SecurityContext.RunAsNonRoot || pod.SecurityContext.SeccompProfile == nil || pod.SecurityContext.SeccompProfile.Type != corev1.SeccompProfileTypeRuntimeDefault {
+	if pod.TerminationGracePeriodSeconds == nil || *pod.TerminationGracePeriodSeconds <= 25 || pod.SecurityContext == nil || pod.SecurityContext.RunAsNonRoot == nil || !*pod.SecurityContext.RunAsNonRoot || pod.SecurityContext.RunAsUser == nil || *pod.SecurityContext.RunAsUser != 65532 || pod.SecurityContext.RunAsGroup == nil || *pod.SecurityContext.RunAsGroup != 65532 || pod.SecurityContext.FSGroup == nil || *pod.SecurityContext.FSGroup != 65532 || pod.SecurityContext.FSGroupChangePolicy == nil || *pod.SecurityContext.FSGroupChangePolicy != corev1.FSGroupChangeOnRootMismatch || pod.SecurityContext.SeccompProfile == nil || pod.SecurityContext.SeccompProfile.Type != corev1.SeccompProfileTypeRuntimeDefault {
 		t.Fatal("Pod graceful shutdown or security context is incomplete")
 	}
 	if len(pod.Containers) != 1 {
@@ -177,7 +177,7 @@ func assertDeployment(t *testing.T, deployment *appsv1.Deployment) {
 	}
 	var ticketSecret bool
 	for _, volume := range pod.Volumes {
-		if volume.Name == "ticket-key" && volume.Secret != nil && volume.Secret.SecretName == "ani-session-gateway-secrets" && volume.Secret.DefaultMode != nil && *volume.Secret.DefaultMode == 0o400 && len(volume.Secret.Items) == 1 && volume.Secret.Items[0].Key == "ticket-encryption-key" && volume.Secret.Items[0].Path == "ticket.key" {
+		if volume.Name == "ticket-key" && volume.Secret != nil && volume.Secret.SecretName == "ani-session-gateway-secrets" && volume.Secret.DefaultMode != nil && *volume.Secret.DefaultMode == 0o440 && len(volume.Secret.Items) == 1 && volume.Secret.Items[0].Key == "ticket-encryption-key" && volume.Secret.Items[0].Path == "ticket.key" {
 			ticketSecret = true
 		}
 	}
@@ -193,8 +193,8 @@ func assertServices(t *testing.T, services map[string]*corev1.Service) {
 		t.Fatal("gRPC must be ClusterIP-only on port 9090")
 	}
 	websocket := services["ani-session-gateway-websocket"]
-	if websocket == nil || websocket.Spec.Type != corev1.ServiceTypeNodePort || len(websocket.Spec.Ports) != 1 || websocket.Spec.Ports[0].Port != 8080 || websocket.Spec.Ports[0].NodePort != 30081 {
-		t.Fatal("WebSocket NodePort 30081 is incomplete")
+	if websocket == nil || websocket.Spec.Type != corev1.ServiceTypeNodePort || len(websocket.Spec.Ports) != 1 || websocket.Spec.Ports[0].Port != 8080 || websocket.Spec.Ports[0].NodePort != 30082 {
+		t.Fatal("WebSocket NodePort 30082 is incomplete")
 	}
 }
 
@@ -249,7 +249,7 @@ func assertNetworkPolicy(t *testing.T, policy *networkingv1.NetworkPolicy) {
 	if !grpcRestricted || !httpExposed {
 		t.Fatal("ingress must expose 8080 and double-select only ani-gateway for 9090")
 	}
-	dns, redis, apiServer, virtAPI := false, false, false, false
+	dns, redis, apiService, apiEndpoint, virtAPI := false, false, false, false, false
 	for _, egress := range policy.Spec.Egress {
 		for _, peer := range egress.To {
 			if peer.NamespaceSelector != nil && peer.PodSelector != nil {
@@ -257,20 +257,23 @@ func assertNetworkPolicy(t *testing.T, policy *networkingv1.NetworkPolicy) {
 				if namespace == "kube-system" && peer.PodSelector.MatchLabels["k8s-app"] == "kube-dns" && hasEgressPort(egress, 53, corev1.ProtocolUDP) && hasEgressPort(egress, 53, corev1.ProtocolTCP) {
 					dns = true
 				}
-				if namespace == "ani-system" && peer.PodSelector.MatchLabels["app.kubernetes.io/name"] == "redis" && hasEgressPort(egress, 6379, corev1.ProtocolTCP) {
+				if namespace == "ani-system" && peer.PodSelector.MatchLabels["app"] == "ani-reconcile-ha-redis" && hasEgressPort(egress, 6379, corev1.ProtocolTCP) {
 					redis = true
 				}
 				if namespace == "kubevirt" && peer.PodSelector.MatchLabels["kubevirt.io"] == "virt-api" && hasEgressPort(egress, 8443, corev1.ProtocolTCP) {
 					virtAPI = true
 				}
 			}
-			if peer.IPBlock != nil && strings.HasSuffix(peer.IPBlock.CIDR, "/32") && hasEgressPort(egress, 443, corev1.ProtocolTCP) {
-				apiServer = true
+			if peer.IPBlock != nil && peer.IPBlock.CIDR == "10.96.0.1/32" && hasEgressPort(egress, 443, corev1.ProtocolTCP) {
+				apiService = true
+			}
+			if peer.IPBlock != nil && peer.IPBlock.CIDR == "10.10.1.66/32" && hasEgressPort(egress, 6443, corev1.ProtocolTCP) {
+				apiEndpoint = true
 			}
 		}
 	}
-	if !dns || !redis || !apiServer || !virtAPI {
-		t.Fatalf("egress selectors incomplete: dns=%v redis=%v api=%v virt-api=%v", dns, redis, apiServer, virtAPI)
+	if !dns || !redis || !apiService || !apiEndpoint || !virtAPI {
+		t.Fatalf("egress selectors incomplete: dns=%v redis=%v api-service=%v api-endpoint=%v virt-api=%v", dns, redis, apiService, apiEndpoint, virtAPI)
 	}
 }
 

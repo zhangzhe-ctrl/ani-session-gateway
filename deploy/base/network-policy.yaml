@@ -42,7 +42,7 @@ spec:
               kubernetes.io/metadata.name: ani-system
           podSelector:
             matchLabels:
-              app.kubernetes.io/name: redis
+              app: ani-reconcile-ha-redis
       ports:
         - protocol: TCP
           port: 6379
@@ -53,6 +53,12 @@ spec:
         - protocol: TCP
           port: 443
     - to:
+        - ipBlock:
+            cidr: 10.10.1.66/32
+      ports:
+        - protocol: TCP
+          port: 6443
+    - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: kubevirt
@@ -62,4 +68,3 @@ spec:
       ports:
         - protocol: TCP
           port: 8443
-
