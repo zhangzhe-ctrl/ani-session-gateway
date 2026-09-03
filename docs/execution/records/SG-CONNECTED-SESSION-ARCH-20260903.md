@@ -64,3 +64,7 @@ PASS: git diff --check
 
 - No live Redis, Kubernetes, KubeVirt, browser, guest login, VNC render/input, rollout, or restart-persistence check was performed in this work package.
 - The current worktree is not committed, pushed, published, or deployed.
+
+## Follow-up
+
+The historical state above was superseded later on 2026-09-03: implementation commit `58393cd` was merged into `main` by `d0353b8`, pushed, and deployed. See `SG-CONNECTED-SESSION-DEPLOY-20260903.md` for the distinct publication and live smoke evidence.

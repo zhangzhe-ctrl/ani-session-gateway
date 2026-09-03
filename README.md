@@ -6,11 +6,11 @@ ANI 的实时会话执行进程，P0 覆盖 Kubernetes Pod terminal、KubeVirt s
 
 ```text
 设计：CLOSED（v1.2；v1.1 为历史）
-实现：SG-P0-LOCAL LOCAL_VERIFIED / MANIFEST_VERIFIED
-当前 Work Package：SG-P0-LOCAL
-GitHub remote：已有 origin；本 Work Package 未修改，由用户手工提交/推送
+实现：Connected Session 架构已合入 main，测试环境 DEPLOYED_SMOKE_VERIFIED
+当前 Work Package：SG-CONNECTED-SESSION-DEPLOY-20260903
+GitHub remote：origin/main 已更新到包含 Connected Session 架构的合并提交
 Go module path：github.com/zhangzhe-ctrl/ani-session-gateway（用户已明确）
-测试环境部署：未授权
+测试环境部署：ani-system 已部署不可变镜像并通过 rollout、探针和安全失败链路冒烟
 ```
 
 ## 权威读取顺序

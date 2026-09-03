@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: session-gateway
-          image: docker.changqingyun.cn/ani/ani-session-gateway:d86a40d33369
+          image: docker.changqingyun.cn/ani/ani-session-gateway:d0353b80383b
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

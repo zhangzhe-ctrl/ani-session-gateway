@@ -3,7 +3,7 @@
 `base/` 是 SG-4 的静态 Kustomize base，不包含可提交的 Secret 明文，也不会自行创建 namespace。部署前必须由人工完成以下替换和只读检查；本地 Goal 不执行这些命令。
 
 1. `config-map.yaml` 当前绑定隔离环境 `10.10.1.66`：Console Origin 为 `http://10.10.1.66:30081`，WebSocket NodePort 为 `30082`。复用到其它环境前必须替换；HTTPS Console 必须使用 `wss://`。
-2. `deployment.yaml` 当前使用已发布的 commit tag `docker.changqingyun.cn/ani/ani-session-gateway:d86a40d33369`；后续发布应继续使用不可变 tag 或 digest。
+2. `deployment.yaml` 当前使用已发布的 merge commit tag `docker.changqingyun.cn/ani/ani-session-gateway:d0353b80383b`；后续发布应继续使用不可变 tag 或 digest。
 3. `network-policy.yaml` 当前同时允许目标集群 `kubernetes.default.svc` 的 VIP `10.96.0.1:443` 与实际 API endpoint `10.10.1.66:6443`；复用到其它环境前必须替换并确认所有 control-plane endpoints，同时复核 DNS、Redis 与 `virt-api` label/port。
 4. 查重 NodePort 30082：`kubectl get service -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{" "}{range .spec.ports[*]}{.nodePort}{"\n"}{end}{end}'`。
 5. 生成恰好 32 个原始随机 bytes，不要保存 base64 文本、hex 文本或换行：`umask 077; head -c 32 /dev/urandom > ticket.key; ./scripts/check-ticket-key.sh ticket.key`。
