@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/store/memory"
 	httptransport "github.com/zhangzhe-ctrl/ani-session-gateway/internal/transport/http"
+	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/transport/websocket/connectedsession"
 )
 
 const testOrigin = "http://console.example.test"
@@ -74,6 +76,62 @@ func TestOriginAndSubprotocolRejectBeforeClaim(t *testing.T) {
 	}
 	connection := dial(t, sessionURL(server.URL, issued), testOrigin, []string{TerminalSubprotocol})
 	_ = connection.Close(websocket.StatusNormalClosure, "")
+}
+
+func TestModeMismatchAfterClaimReleasesCapacityWithoutStartingConnectedSession(t *testing.T) {
+	base, _ := url.Parse("ws://unused.example/api/v1/realtime")
+	var key [32]byte
+	copy(key[:], []byte("0123456789abcdef0123456789abcdef"))
+	manager, err := session.NewManager(memory.New(), session.ManagerConfig{
+		PublicWSBaseURL: base, TicketKey: key, TicketTTL: time.Minute, SessionMaxDuration: time.Minute,
+		IdempotencyTTL: time.Minute, MaxActive: 1, MaxActivePerSubject: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := session.Request{IdempotencyKey: "first", TenantID: "tenant-a", SubjectID: "subject-a", InstanceID: "instance-a", WorkloadName: "workload-a", WorkloadKind: session.WorkloadContainer, Mode: session.ModeExec, Command: []string{"/bin/sh"}, TTY: true, Rows: 24, Cols: 80}
+	issued, err := manager.Issue(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := &fakeExecRuntime{}
+	observer := &admissionObserver{}
+	connected, err := connectedsession.New(connectedsession.Dependencies{Manager: manager, Exec: runtime, VM: unavailableVMRuntime{}, Clock: connectedsession.SystemClock{}, Observer: observer}, connectedsession.Policy{MaxMessageBytes: 1024, IdleTimeout: time.Minute, WriteTimeout: 200 * time.Millisecond, InboundQueue: 8, OutboundQueue: 8})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewHandler(manager, connected, Config{AllowedOrigins: map[string]struct{}{testOrigin: {}}, CleanupTimeout: 200 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := testServer(t, handler)
+	_, response, err := websocket.Dial(context.Background(), sessionURL(server.URL, issued), dialOptions(testOrigin, []string{VNCSubprotocol}))
+	if err == nil || response == nil || response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("mode mismatch response=%v err=%v", response, err)
+	}
+	_ = response.Body.Close()
+	if observer.opens.Load() != 0 {
+		t.Fatalf("Connected Session opened %d times", observer.opens.Load())
+	}
+	runtime.mu.Lock()
+	opened := runtime.stream != nil
+	runtime.mu.Unlock()
+	if opened {
+		t.Fatal("runtime opened during rejected admission")
+	}
+
+	request.IdempotencyKey = "second"
+	second, err := manager.Issue(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	access, err := manager.Claim(context.Background(), second.Session.ID, second.Ticket)
+	if err != nil {
+		t.Fatalf("admission cleanup did not release capacity: %v", err)
+	}
+	if err := manager.Close(context.Background(), access.SessionID, access.LeaseID, "test_cleanup"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestInvalidBinaryFrameAndInboundBackpressureFailClosed(t *testing.T) {
@@ -266,12 +324,60 @@ func testManagerAndSession(t *testing.T, maxDuration time.Duration) (*session.Ma
 }
 func testHandler(t *testing.T, manager *session.Manager, runtime runtimeport.ExecRuntime, maxBytes int64, idle time.Duration, outbound, inbound int) *Handler {
 	t.Helper()
-	handler, err := NewHandler(manager, runtime, nil, Config{AllowedOrigins: map[string]struct{}{testOrigin: {}}, MaxMessageBytes: maxBytes, IdleTimeout: idle, WriteTimeout: 200 * time.Millisecond, OutboundQueue: outbound, InboundQueue: inbound})
+	probes := observability.NewHandler()
+	connected, err := connectedsession.New(connectedsession.Dependencies{
+		Manager: manager,
+		Exec:    runtime,
+		VM:      unavailableVMRuntime{},
+		Clock:   connectedsession.SystemClock{},
+		Observer: observability.NewConnectedSessionObserver(
+			probes.SessionMetrics(),
+		),
+	}, connectedsession.Policy{MaxMessageBytes: maxBytes, IdleTimeout: idle, WriteTimeout: 200 * time.Millisecond, OutboundQueue: outbound, InboundQueue: inbound})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewHandler(manager, connected, Config{AllowedOrigins: map[string]struct{}{testOrigin: {}}, CleanupTimeout: 200 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return handler
 }
+
+type unavailableVMRuntime struct{}
+
+func (unavailableVMRuntime) OpenSerial(context.Context, runtimeport.VMTarget) (runtimeport.ByteStream, error) {
+	return nil, runtimeport.ErrUnavailable
+}
+
+type admissionObserver struct{ opens atomic.Int32 }
+
+func (o *admissionObserver) Open(context.Context, connectedsession.SafeFacts) connectedsession.Observation {
+	o.opens.Add(1)
+	return admissionObservation{}
+}
+
+type admissionObservation struct{}
+
+func (admissionObservation) Connected(time.Time)            {}
+func (admissionObservation) Finish(connectedsession.Finish) {}
+func (unavailableVMRuntime) OpenVNC(context.Context, runtimeport.VMTarget) (runtimeport.ByteStream, error) {
+	return nil, runtimeport.ErrUnavailable
+}
+
+type clientFrame struct {
+	Type string `json:"type"`
+	Data string `json:"data,omitempty"`
+	Rows uint16 `json:"rows,omitempty"`
+	Cols uint16 `json:"cols,omitempty"`
+}
+
+type serverFrame struct {
+	Type string `json:"type"`
+	Data string `json:"data,omitempty"`
+	Code any    `json:"code,omitempty"`
+}
+
 func testServer(t *testing.T, handler *Handler) *httptest.Server {
 	t.Helper()
 	probes := observability.NewHandler()
