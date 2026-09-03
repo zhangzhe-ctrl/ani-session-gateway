@@ -131,7 +131,7 @@ Browser
   |
   | 3. WebSocket + one-time ticket
   v
-NodeIP:30081 (planned; deploy前必须查重)
+NodeIP:30082 (planned; deploy前必须查重)
   |
   v
 ani-session-gateway-ws:8080
@@ -145,15 +145,15 @@ ani-session-gateway-ws:8080
 创建两个 Kubernetes Service：
 
 1. `ani-session-gateway-grpc`：`ClusterIP`，只暴露 `9090`；
-2. `ani-session-gateway-ws`：`NodePort`，只暴露 `8080`，计划使用 `30081`。
+2. `ani-session-gateway-ws`：`NodePort`，只暴露 `8080`，计划使用 `30082`。
 
 不要创建一个同时包含 gRPC 和 WebSocket 端口的 NodePort Service，否则 Kubernetes 会同时给内部 gRPC 端口分配外部 NodePort。
 
 实验环境使用：
 
 ```text
-PUBLIC_WS_BASE_URL=ws://<可达节点地址>:30081/api/v1/realtime
-ALLOWED_ORIGINS=http://<Console地址>:30080
+PUBLIC_WS_BASE_URL=ws://<可达节点地址>:30082/api/v1/realtime
+ALLOWED_ORIGINS=http://<Console地址>:30081
 ```
 
 如果 Console 改成 HTTPS，必须同时把公开连接改成 `wss://`。浏览器不会允许 HTTPS 页面连接 `ws://`。TLS 可以由后续 Envoy/Ingress 终止，也可以由 Session Gateway 自身终止；不进入本 P0。
@@ -871,7 +871,7 @@ VNCConsoleDialog     - @novnc/novnc RFB + binary WebSocket
 - `kubectl auth can-i` 证明 Secret read、Pod delete、VM update 被拒绝；
 - 集群外不能访问 9090；
 - 非 ani-gateway Pod 不能访问 gRPC；
-- NodePort 30081 可从 Console 所在浏览器网络访问；
+- NodePort 30082 可从 Console 所在浏览器网络访问；
 - Pod restart 后服务恢复，Redis 中未 claim session 与幂等状态仍可验证。
 
 ### ANI-GW-1：Core Gateway gRPC 接入
@@ -948,7 +948,7 @@ Console/API credential
   -> auth/RBAC
   -> Session Gateway gRPC
   -> one-time ticket
-  -> Session Gateway NodePort 30081
+  -> Session Gateway NodePort 30082
   -> Kubernetes/KubeVirt stream
 ```
 
@@ -1020,7 +1020,7 @@ frontend:
 - VNCConsoleDialog lifecycle
 
 live:
-- 30080 control plane + 30081 data plane end-to-end
+- 30080 control plane + 30082 data plane end-to-end
 ```
 
 ## 17. 发布和回滚

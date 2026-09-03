@@ -93,3 +93,33 @@ type SessionLease struct {
 	Session   Session
 	ExpiresAt time.Time
 }
+
+// ClaimedAccess is the operational projection of a claimed session. It keeps
+// ticket, idempotency, and persistence details behind the Manager seam.
+type ClaimedAccess struct {
+	SessionID string
+	LeaseID   string
+	ExpiresAt time.Time
+	Identity  Identity
+	Target    Target
+	Mode      Mode
+	Exec      *ExecOptions
+}
+
+type Identity struct {
+	TenantID   string
+	SubjectID  string
+	InstanceID string
+}
+
+type Target struct {
+	WorkloadName string
+	WorkloadKind WorkloadKind
+}
+
+type ExecOptions struct {
+	Container string
+	Command   []string
+	TTY       bool
+	Size      TerminalSize
+}

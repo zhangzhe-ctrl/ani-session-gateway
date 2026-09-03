@@ -40,9 +40,12 @@ func TestManagerIdempotencyEncryptionAndClaim(t *testing.T) {
 	if !strings.Contains(manager.ConnectURL(first), "ticket=") {
 		t.Fatal("connect URL omitted ticket")
 	}
-	lease, err := manager.Claim(context.Background(), first.Session.ID, first.Ticket)
+	access, err := manager.Claim(context.Background(), first.Session.ID, first.Ticket)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if access.SessionID != first.Session.ID || access.LeaseID == "" || access.Mode != session.ModeExec || access.Target.WorkloadName != first.Session.WorkloadName || access.Exec == nil || access.Exec.Size != (session.TerminalSize{Rows: 30, Cols: 120}) {
+		t.Fatalf("claimed access omitted operational facts: %#v", access)
 	}
 	if _, err := manager.Claim(context.Background(), first.Session.ID, first.Ticket); !errors.Is(err, session.ErrFailedPrecondition) {
 		t.Fatalf("ticket replay error=%v", err)
@@ -50,7 +53,7 @@ func TestManagerIdempotencyEncryptionAndClaim(t *testing.T) {
 	if _, err := manager.Issue(context.Background(), request); !errors.Is(err, session.ErrFailedPrecondition) {
 		t.Fatalf("idempotency replay after claim error=%v", err)
 	}
-	if err := manager.Close(context.Background(), first.Session.ID, lease.ID, "normal"); err != nil {
+	if err := manager.Close(context.Background(), access.SessionID, access.LeaseID, "normal"); err != nil {
 		t.Fatal(err)
 	}
 }

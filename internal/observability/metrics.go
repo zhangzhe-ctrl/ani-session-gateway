@@ -12,6 +12,7 @@ type SessionMetrics struct {
 	duration      *prometheus.HistogramVec
 	bytes         *prometheus.CounterVec
 	claim         *prometheus.CounterVec
+	end           *prometheus.CounterVec
 	runtimeErrors *prometheus.CounterVec
 }
 
@@ -22,10 +23,17 @@ func newSessionMetrics(registry prometheus.Registerer) *SessionMetrics {
 		duration:      prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "ani_session_duration_seconds", Help: "Connected session duration by mode."}, []string{"mode"}),
 		bytes:         prometheus.NewCounterVec(prometheus.CounterOpts{Name: "ani_session_bytes_total", Help: "Session payload bytes by mode and direction."}, []string{"mode", "direction"}),
 		claim:         prometheus.NewCounterVec(prometheus.CounterOpts{Name: "ani_session_claim_total", Help: "Ticket claim attempts by result."}, []string{"result"}),
+		end:           prometheus.NewCounterVec(prometheus.CounterOpts{Name: "ani_session_end_total", Help: "Connected Session endings by mode and bounded outcome."}, []string{"mode", "outcome"}),
 		runtimeErrors: prometheus.NewCounterVec(prometheus.CounterOpts{Name: "ani_session_runtime_errors_total", Help: "Runtime failures by mode and bounded code."}, []string{"mode", "code"}),
 	}
-	registry.MustRegister(metrics.create, metrics.active, metrics.duration, metrics.bytes, metrics.claim, metrics.runtimeErrors)
+	registry.MustRegister(metrics.create, metrics.active, metrics.duration, metrics.bytes, metrics.claim, metrics.end, metrics.runtimeErrors)
 	return metrics
+}
+
+func (m *SessionMetrics) Ended(mode, outcome string) {
+	if m != nil {
+		m.end.WithLabelValues(boundedMode(mode), outcome).Inc()
+	}
 }
 
 func (m *SessionMetrics) SessionCreated(mode, result string) {
@@ -54,7 +62,7 @@ func (m *SessionMetrics) Closed(mode string, duration time.Duration) {
 	}
 }
 
-func (m *SessionMetrics) AddBytes(mode, direction string, count int) {
+func (m *SessionMetrics) AddBytes(mode, direction string, count uint64) {
 	if m != nil && count > 0 {
 		m.bytes.WithLabelValues(boundedMode(mode), direction).Add(float64(count))
 	}

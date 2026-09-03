@@ -4,16 +4,16 @@
 project: ANI Realtime Session Gateway P0
 design_revision: v1.2
 design_status: CLOSED
-implementation_status: LOCAL_VERIFIED
-active_work_package: SG-P0-LOCAL
-goal_run_status: MANIFEST_VERIFIED
-resume_checkpoint: NONE
+implementation_status: LOCAL_VERIFIED_ON_DEPLOYED_BASELINE
+active_work_package: SG-CONNECTED-SESSION-ARCH-20260903
+goal_run_status: LOCAL_VERIFIED_NOT_DEPLOYED
+resume_checkpoint: HUMAN_REVIEW
 module_path: github.com/zhangzhe-ctrl/ani-session-gateway
 remote: EXISTING_ORIGIN_UNCHANGED
 git_authority: LOCAL_WORKTREE_ONLY
-deployment_authority: NONE
+deployment_authority: NONE_ACTIVE
 ani_baseline: 963bc88836c54a1b09cf100b37eb2f2cb2a5a4be
-last_updated: 2026-09-02
+last_updated: 2026-09-03
 ```
 
 ## Checkpoint evidence
@@ -26,8 +26,10 @@ last_updated: 2026-09-02
 | SG-2 | LOCAL_VERIFIED | coder/websocket terminal protocol; exact origin/subprotocol gate; bounded backpressure; idle/max-duration/message-size close; typed CoreV1 Pod resolver with namespace plus double-label verification; SPDY Pod exec; unit/race/full `make check` passed | Real Kubernetes API/SPDY Pod exec smoke not_verified; no cluster was contacted |
 | SG-3 | LOCAL_VERIFIED | KubeVirt client-go v1.8.2 with Kubernetes v0.34.3; VMI Running/namespace/name/double-label defense; provider `console`/`vnc` plus `plain.kubevirt.io`; Serial JSON and raw binary VNC bridges; cancellation/timeout/error/race/full `make check` passed | Real KubeVirt serial login and VNC RFB/render/input smoke are not_verified; no cluster was contacted |
 | SG-4 | MANIFEST_VERIFIED | Deployment; ClusterIP gRPC + NodePort WebSocket Services; minimal ClusterRole/Binding; external Secret references and exact read-only ticket-key mount; NetworkPolicy ingress/egress; strict typed manifest test; 32-byte key validator; full `make check` and local container build passed | `kubectl`/`kustomize` binaries and cluster unavailable; server dry-run, `auth can-i`, NetworkPolicy behavior, NodePort collision/access, real Secret bytes and restart persistence are not_verified |
+| SG-LIVE-DEPLOY-20260903 | DEPLOYED_PARTIAL_E2E_VERIFIED | `ani-system` 中 Session Gateway 与 ANI Gateway 均 1/1 Ready；私库镜像、WS NodePort 30082、HTTP probes、Gateway 到 gRPC、Redis、RBAC allow/deny、Pod exec、VM serial JSON/stdout 与 VNC 101/binary RFB 握手已验证 | guest serial 登录/命令语义、VNC render/input、ticket 重放/过期/跨租户、NetworkPolicy 负向隔离与 restart persistence 仍未验证 |
+| SG-CONNECTED-SESSION-ARCH-20260903 | LOCAL_VERIFIED_NOT_DEPLOYED | `ClaimedAccess` 精简投影；`connectedsession.Module.Run` 统一 exec/serial/VNC 生命周期、first-wins outcome、可控时间、payload 计数与清理；Handler 仅保留 admission；新增 `ani_session_end_total`；`make check` 全通过 | 当前工作树未 commit/push/deploy；真实 Kubernetes/KubeVirt/Redis 与 rollout 行为未在本批次复验 |
 
-Full commands and evidence: `docs/execution/records/SG-P0-LOCAL.md`.
+Full commands and evidence: `docs/execution/records/SG-P0-LOCAL.md` and `docs/execution/records/SG-CONNECTED-SESSION-ARCH-20260903.md`.
 
 ## Repository publication readiness
 
@@ -42,3 +44,5 @@ Full commands and evidence: `docs/execution/records/SG-P0-LOCAL.md`.
 - API submodule 首次发布：用户手工 commit/push，并在包含完整 API 文件的提交上创建 Git tag `api/v0.1.0`；ANI 依赖时使用 module version `v0.1.0`。
 - ANI-GW-1：用户提供已发布的 `<API_VERSION>` 与 ANI 精确 baseline。
 - LIVE-1：用户单独授权 SSH、测试 namespace、fixtures、rollout、删除范围和回滚。
+- 当前部署：用户已一次性授权部署到 `ani-system`，该授权已消费；继续执行 fixture 创建、故障注入、删除或完整 LIVE-1 仍需单独授权。
+- Connected Session 架构批次：当前只完成本地实现与门禁；commit、push、镜像构建/推送和部署均由用户另行决定。

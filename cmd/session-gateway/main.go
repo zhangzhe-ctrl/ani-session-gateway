@@ -20,6 +20,7 @@ import (
 	grpctransport "github.com/zhangzhe-ctrl/ani-session-gateway/internal/transport/grpc"
 	httptransport "github.com/zhangzhe-ctrl/ani-session-gateway/internal/transport/http"
 	websockettransport "github.com/zhangzhe-ctrl/ani-session-gateway/internal/transport/websocket"
+	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/transport/websocket/connectedsession"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
@@ -82,11 +83,28 @@ func run() (runErr error) {
 	if err != nil {
 		return fmt.Errorf("initialize KubeVirt client: %w", err)
 	}
-	websocketHandler, err := websockettransport.NewHandler(manager, execRuntime, vmRuntime, websockettransport.Config{AllowedOrigins: cfg.AllowedOrigins, MaxMessageBytes: cfg.WSMaxMessageBytes, IdleTimeout: cfg.WSIdleTimeout, WriteTimeout: cfg.WSHandshakeTimeout})
+	connectedSessions, err := connectedsession.New(connectedsession.Dependencies{
+		Manager: manager,
+		Exec:    execRuntime,
+		VM:      vmRuntime,
+		Clock:   connectedsession.SystemClock{},
+		Observer: observability.NewConnectedSessionObserver(
+			probes.SessionMetrics(),
+		),
+	}, connectedsession.Policy{
+		MaxMessageBytes: cfg.WSMaxMessageBytes,
+		IdleTimeout:     cfg.WSIdleTimeout,
+		WriteTimeout:    cfg.WSHandshakeTimeout,
+		InboundQueue:    32,
+		OutboundQueue:   32,
+	})
 	if err != nil {
-		return fmt.Errorf("initialize WebSocket transport: %w", err)
+		return fmt.Errorf("initialize Connected Session module: %w", err)
 	}
-	websocketHandler.SetMetrics(probes.SessionMetrics())
+	websocketHandler, err := websockettransport.NewHandler(manager, connectedSessions, websockettransport.Config{AllowedOrigins: cfg.AllowedOrigins, CleanupTimeout: cfg.WSHandshakeTimeout})
+	if err != nil {
+		return fmt.Errorf("initialize WebSocket admission: %w", err)
+	}
 	runCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	httpListener, err := net.Listen("tcp", cfg.HTTPAddr)

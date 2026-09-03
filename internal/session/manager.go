@@ -137,7 +137,7 @@ func (m *Manager) ConnectURL(issued Issued) string {
 	return u.String()
 }
 
-func (m *Manager) Claim(ctx context.Context, sessionID, ticket string) (SessionLease, error) {
+func (m *Manager) Claim(ctx context.Context, sessionID, ticket string) (ClaimedAccess, error) {
 	ctx, span := otel.Tracer("github.com/zhangzhe-ctrl/ani-session-gateway/session").Start(ctx, "session_manager.claim")
 	defer span.End()
 	digest := sha256.Sum256([]byte(ticket))
@@ -149,7 +149,33 @@ func (m *Manager) Claim(ctx context.Context, sessionID, ticket string) (SessionL
 	if err == nil {
 		slog.Info("session_claimed", "session_id", lease.Session.ID, "tenant_id", lease.Session.TenantID, "subject_id", lease.Session.SubjectID, "instance_id", lease.Session.InstanceID, "mode", lease.Session.Mode)
 	}
-	return lease, err
+	if err != nil {
+		return ClaimedAccess{}, err
+	}
+	access := ClaimedAccess{
+		SessionID: lease.Session.ID,
+		LeaseID:   lease.ID,
+		ExpiresAt: lease.ExpiresAt,
+		Identity: Identity{
+			TenantID:   lease.Session.TenantID,
+			SubjectID:  lease.Session.SubjectID,
+			InstanceID: lease.Session.InstanceID,
+		},
+		Target: Target{
+			WorkloadName: lease.Session.WorkloadName,
+			WorkloadKind: lease.Session.WorkloadKind,
+		},
+		Mode: lease.Session.Mode,
+	}
+	if lease.Session.Mode == ModeExec {
+		access.Exec = &ExecOptions{
+			Container: lease.Session.Container,
+			Command:   append([]string(nil), lease.Session.Command...),
+			TTY:       lease.Session.TTY,
+			Size:      TerminalSize{Rows: lease.Session.Rows, Cols: lease.Session.Cols},
+		}
+	}
+	return access, nil
 }
 
 func (m *Manager) Close(ctx context.Context, sessionID, leaseID, reason string) error {

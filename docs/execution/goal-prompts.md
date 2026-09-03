@@ -149,9 +149,9 @@ MODULE_PATH 已固定为 github.com/zhangzhe-ctrl/ani-session-gateway；不得�
 
 允许修改：deploy/kubernetes/**、配置示例、Makefile/验证脚本、README、status 和 SG-4 record。只在验证暴露真实缺陷时允许对应用代码做最小修复并记录理由。
 
-禁止：kubectl apply/patch/delete/rollout、SSH、读取 kubeconfig/Secret、修改 ANI、配置固定公网 IP、声称 NodePort 30081 已可用、GitHub 写入。
+禁止：kubectl apply/patch/delete/rollout、SSH、读取 kubeconfig/Secret、修改 ANI、配置固定公网 IP、声称 NodePort 30082 已可用、GitHub 写入。
 
-清单必须：gRPC ClusterIP 与 WS NodePort 分离；STORE_MODE 固定 redis、REDIS_URL 来自受控配置且禁止 memory/auto；包含 Prometheus 与 OpenTelemetry 环境配置；gRPC ingress 同时限制 ani-system namespace 与 ani-gateway pod selector；egress 明确 DNS、Redis、Kubernetes API/virt-api 和配置的 OTLP collector；ClusterRole 只含 pods get/list、pods/exec create、VMI get、console/vnc subresource get；禁止 Secret read、Pod delete、VM write、wildcard；non-root、read-only rootfs、drop capabilities、seccomp、资源限制、probes、termination grace 和 key Secret volume均闭合。NodePort 30081 只是 planned value并带部署前查重门禁。
+清单必须：gRPC ClusterIP 与 WS NodePort 分离；STORE_MODE 固定 redis、REDIS_URL 来自受控配置且禁止 memory/auto；包含 Prometheus 与 OpenTelemetry 环境配置；gRPC ingress 同时限制 ani-system namespace 与 ani-gateway pod selector；egress 明确 DNS、Redis、Kubernetes API/virt-api 和配置的 OTLP collector；ClusterRole 只含 pods get/list、pods/exec create、VMI get、console/vnc subresource get；禁止 Secret read、Pod delete、VM write、wildcard；non-root、read-only rootfs、drop capabilities、seccomp、资源限制、probes、termination grace 和 key Secret volume均闭合。NodePort 30082 只是 planned value并带部署前查重门禁。
 
 运行可用的 YAML/schema、Kustomize/Helm（若实际采用）、kubectl client dry-run、RBAC 静态正反向测试、NetworkPolicy selector/egress 测试、go test/vet 和 git diff --check。没有集群时 kubectl auth can-i、外部 9090 拒绝和 NodePort 可达都记 not_verified。
 
