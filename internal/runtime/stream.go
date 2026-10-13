@@ -18,12 +18,14 @@ var (
 )
 
 type ExecTarget struct {
-	TenantID     string
-	WorkloadName string
-	WorkloadKind session.WorkloadKind
-	Container    string
-	Command      []string
-	TTY          bool
+	InstanceID      string
+	InstanceBinding session.InstanceBinding
+	TenantID        string
+	WorkloadName    string
+	WorkloadKind    session.WorkloadKind
+	Container       string
+	Command         []string
+	TTY             bool
 }
 
 type VMTarget struct{ TenantID, WorkloadName string }

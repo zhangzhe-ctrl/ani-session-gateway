@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/store/storetest"
-	"github.com/redis/go-redis/v9"
 )
 
 func TestContractAgainstProtocolCompatibleLocalRedis(t *testing.T) {
@@ -65,4 +65,36 @@ func TestRedisContainsNoPlaintextTicketAndDoesNotFallbackAfterFailure(t *testing
 		t.Fatalf("runtime Redis failure error=%v", err)
 	}
 	_ = client.Close()
+}
+
+type instanceAuthority struct{}
+
+func (instanceAuthority) Validate(context.Context, string, string, session.InstanceBinding) error {
+	return nil
+}
+func TestManagedInstanceRedisBindingSurvivesManagerRestart(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	defer client.Close()
+	base, _ := url.Parse("ws://127.0.0.1:30081/api/v1/realtime")
+	var key [32]byte
+	copy(key[:], []byte("0123456789abcdef0123456789abcdef"))
+	config := session.ManagerConfig{InstanceValidator: instanceAuthority{}, PublicWSBaseURL: base, TicketKey: key, TicketTTL: time.Minute, SessionMaxDuration: 15 * time.Minute, IdempotencyTTL: 15 * time.Minute, MaxActive: 10, MaxActivePerSubject: 5}
+	manager, e := session.NewManager(New(client), config)
+	if e != nil {
+		t.Fatal(e)
+	}
+	request := session.Request{IdempotencyKey: "managed-instance", TenantID: "tenant", SubjectID: "subject", InstanceID: "instance", WorkloadName: "notebook", WorkloadKind: session.WorkloadGPUContainer, Mode: session.ModeExec, Container: "workspace", Command: []string{"/bin/sh"}, Rows: 24, Cols: 80, InstanceBinding: session.InstanceBinding{Enabled: true, Version: 3, ClusterID: "cluster", Namespace: "saved-tenant", NotebookName: "notebook", NotebookUID: "notebook-original", PodName: "notebook-0", PodUID: "pod-original", ContainerName: "workspace", Shell: "/bin/sh"}}
+	issued, e := manager.Issue(context.Background(), request)
+	if e != nil {
+		t.Fatal(e)
+	}
+	manager, e = session.NewManager(New(client), config)
+	if e != nil {
+		t.Fatal(e)
+	}
+	access, e := manager.Claim(context.Background(), issued.Session.ID, issued.Ticket)
+	if e != nil || access.Target.InstanceBinding != request.InstanceBinding {
+		t.Fatal("persisted target binding lost on restart", e)
+	}
 }

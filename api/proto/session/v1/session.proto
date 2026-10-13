@@ -30,6 +30,13 @@ message Target {
   string instance_id = 1;
   string workload_name = 2;
   WorkloadKind workload_kind = 3;
+  // Resource-owned binding, accepted only from the authenticated Governance peer.
+  InstanceBinding instance_binding = 4;
+}
+message InstanceBinding {
+ int64 version = 1; string cluster_id = 2; string namespace = 3;
+ string notebook_name = 4; string notebook_uid = 5;
+ string pod_name = 6; string pod_uid = 7; string container_name = 8; string shell = 9;
 }
 
 enum WorkloadKind {

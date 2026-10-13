@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/config"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/observability"
 	kubernetesruntime "github.com/zhangzhe-ctrl/ani-session-gateway/internal/runtime/kubernetes"
 	kubevirtruntime "github.com/zhangzhe-ctrl/ani-session-gateway/internal/runtime/kubevirt"
+	resourceruntime "github.com/zhangzhe-ctrl/ani-session-gateway/internal/runtime/resource"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/store"
 	grpctransport "github.com/zhangzhe-ctrl/ani-session-gateway/internal/transport/grpc"
@@ -23,6 +26,7 @@ import (
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/transport/websocket/connectedsession"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func main() {
@@ -66,19 +70,35 @@ func run() (runErr error) {
 	if selection.Degraded {
 		slog.Warn("store_degraded", "store_mode", selectedStore.Mode(), "local", true)
 	}
-	manager, err := session.NewManager(selectedStore, session.ManagerConfig{PublicWSBaseURL: cfg.PublicWSBaseURL, TicketKey: cfg.TicketKey, TicketTTL: cfg.TicketTTL, SessionMaxDuration: cfg.SessionMaxDuration, IdempotencyTTL: cfg.IdempotencyTTL, MaxActive: cfg.MaxActiveSessions, MaxActivePerSubject: cfg.MaxActivePerSubject, Observer: probes.SessionMetrics()})
+	validator, closeValidator, err := resourceruntime.NewFromEnv()
+	if err != nil {
+		return err
+	}
+	defer closeValidator()
+	controlOptions, err := instanceControlOptions(validator != nil)
+	if err != nil {
+		return err
+	}
+	manager, err := session.NewManager(selectedStore, session.ManagerConfig{InstanceValidator: validator, PublicWSBaseURL: cfg.PublicWSBaseURL, TicketKey: cfg.TicketKey, TicketTTL: cfg.TicketTTL, SessionMaxDuration: cfg.SessionMaxDuration, IdempotencyTTL: cfg.IdempotencyTTL, MaxActive: cfg.MaxActiveSessions, MaxActivePerSubject: cfg.MaxActivePerSubject, Observer: probes.SessionMetrics()})
 	if err != nil {
 		return fmt.Errorf("initialize session manager: %w", err)
 	}
-	kubernetesConfig, err := rest.InClusterConfig()
+	kubernetesConfig, err := loadKubernetesConfig()
 	if err != nil {
-		return fmt.Errorf("load in-cluster Kubernetes config: %w", err)
+		return fmt.Errorf("load Kubernetes config: %w", err)
 	}
 	kubernetesClient, err := typedcorev1.NewForConfig(kubernetesConfig)
 	if err != nil {
 		return fmt.Errorf("initialize Kubernetes client: %w", err)
 	}
 	execRuntime := kubernetesruntime.NewExecAdapter(kubernetesConfig, kubernetesClient)
+	if validator != nil {
+		cluster := os.Getenv("RESOURCE_INSTANCE_CLUSTER_ID")
+		if cluster == "" {
+			return fmt.Errorf("managed instance cluster binding required")
+		}
+		execRuntime.ConfigureInstanceValidator(validator, cluster)
+	}
 	vmRuntime, err := kubevirtruntime.NewAdapter(kubernetesConfig, cfg.WSHandshakeTimeout)
 	if err != nil {
 		return fmt.Errorf("initialize KubeVirt client: %w", err)
@@ -121,7 +141,7 @@ func run() (runErr error) {
 	router := httptransport.NewRouter(probes)
 	websockettransport.RegisterRoutes(router, websocketHandler)
 	httpServer := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: cfg.WSHandshakeTimeout, BaseContext: func(net.Listener) context.Context { return runCtx }}
-	grpcServer := grpctransport.New(grpctransport.NewSessionServer(manager))
+	grpcServer := grpctransport.New(grpctransport.NewSessionServer(manager), controlOptions...)
 	errorsCh := make(chan error, 2)
 	go func() {
 		if err := httpServer.Serve(httpListener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -146,4 +166,24 @@ func run() (runErr error) {
 	defer cancel()
 	grpcServer.GracefulStop()
 	return httpServer.Shutdown(shutdownCtx)
+}
+
+// An explicit managed kubeconfig permits the isolated Fedora runtime to use
+// the real API. Pod deployments retain the default in-cluster identity.
+func loadKubernetesConfig() (*rest.Config, error) {
+	path := os.Getenv("KUBECONFIG")
+	if path == "" {
+		return rest.InClusterConfig()
+	}
+	if !filepath.IsAbs(path) {
+		return nil, fmt.Errorf("KUBECONFIG requires an absolute managed path")
+	}
+	cfg, err := clientcmd.BuildConfigFromFlags("", path)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Insecure || !strings.HasPrefix(cfg.Host, "https://") || cfg.ExecProvider != nil || cfg.AuthProvider != nil {
+		return nil, fmt.Errorf("KUBECONFIG requires verified HTTPS and static managed credentials")
+	}
+	return cfg, nil
 }

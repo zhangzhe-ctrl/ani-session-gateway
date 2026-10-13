@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
 	"github.com/redis/go-redis/v9"
+	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
 )
 
 const defaultPrefix = "{ani-session-gateway}:"
@@ -220,15 +220,20 @@ func (s *Store) subjectLeasesKey(subject string) string {
 	return s.prefix + "subject:" + hex.EncodeToString(digest[:]) + ":leases"
 }
 
-var fieldOrder = []string{"id", "idempotency_key", "fingerprint", "ticket_digest", "ticket_ciphertext", "tenant_id", "subject_id", "instance_id", "workload_name", "workload_kind", "mode", "container", "command", "tty", "rows", "cols", "requested_protocol", "state", "created_at", "ticket_expires_at", "expires_at", "tombstone_expires_at", "claimed_at", "closed_at", "close_reason", "lease_id"}
+var fieldOrder = []string{"id", "idempotency_key", "fingerprint", "ticket_digest", "ticket_ciphertext", "tenant_id", "subject_id", "instance_id", "workload_name", "workload_kind", "mode", "container", "command", "tty", "rows", "cols", "requested_protocol", "state", "created_at", "ticket_expires_at", "expires_at", "tombstone_expires_at", "claimed_at", "closed_at", "close_reason", "lease_id", "instance_binding"}
 
 func encode(value session.Session) (map[string]string, error) {
 	command, err := json.Marshal(value.Command)
 	if err != nil {
 		return nil, err
 	}
+	binding, err := json.Marshal(value.InstanceBinding)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]string{
-		"id": value.ID, "idempotency_key": value.IdempotencyKey, "fingerprint": hex.EncodeToString(value.RequestFingerprint[:]), "ticket_digest": hex.EncodeToString(value.TicketDigest[:]), "ticket_ciphertext": base64.RawStdEncoding.EncodeToString(value.TicketCiphertext),
+		"instance_binding": string(binding),
+		"id":               value.ID, "idempotency_key": value.IdempotencyKey, "fingerprint": hex.EncodeToString(value.RequestFingerprint[:]), "ticket_digest": hex.EncodeToString(value.TicketDigest[:]), "ticket_ciphertext": base64.RawStdEncoding.EncodeToString(value.TicketCiphertext),
 		"tenant_id": value.TenantID, "subject_id": value.SubjectID, "instance_id": value.InstanceID, "workload_name": value.WorkloadName, "workload_kind": string(value.WorkloadKind), "mode": string(value.Mode), "container": value.Container, "command": string(command),
 		"tty": strconv.FormatBool(value.TTY), "rows": strconv.Itoa(int(value.Rows)), "cols": strconv.Itoa(int(value.Cols)), "requested_protocol": value.RequestedProtocol, "state": string(value.State),
 		"created_at": millis(value.CreatedAt), "ticket_expires_at": millis(value.TicketExpiresAt), "expires_at": millis(value.ExpiresAt), "tombstone_expires_at": millis(value.TombstoneExpiresAt), "claimed_at": millis(value.ClaimedAt), "closed_at": millis(value.ClosedAt), "close_reason": value.CloseReason, "lease_id": value.LeaseID,
@@ -237,6 +242,11 @@ func encode(value session.Session) (map[string]string, error) {
 
 func decode(fields map[string]string) (session.Session, error) {
 	var value session.Session
+	if raw := fields["instance_binding"]; raw != "" {
+		if e := json.Unmarshal([]byte(raw), &value.InstanceBinding); e != nil {
+			return value, e
+		}
+	}
 	value.ID = fields["id"]
 	value.IdempotencyKey = fields["idempotency_key"]
 	value.TenantID = fields["tenant_id"]

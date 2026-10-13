@@ -123,7 +123,7 @@ func (x VMConsoleOptions_Protocol) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use VMConsoleOptions_Protocol.Descriptor instead.
 func (VMConsoleOptions_Protocol) EnumDescriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{4, 0}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{5, 0}
 }
 
 type CreateSessionRequest struct {
@@ -293,12 +293,14 @@ func (x *Principal) GetSubjectId() string {
 }
 
 type Target struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	InstanceId    string                 `protobuf:"bytes,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
-	WorkloadName  string                 `protobuf:"bytes,2,opt,name=workload_name,json=workloadName,proto3" json:"workload_name,omitempty"`
-	WorkloadKind  WorkloadKind           `protobuf:"varint,3,opt,name=workload_kind,json=workloadKind,proto3,enum=ani.session.v1.WorkloadKind" json:"workload_kind,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	InstanceId   string                 `protobuf:"bytes,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	WorkloadName string                 `protobuf:"bytes,2,opt,name=workload_name,json=workloadName,proto3" json:"workload_name,omitempty"`
+	WorkloadKind WorkloadKind           `protobuf:"varint,3,opt,name=workload_kind,json=workloadKind,proto3,enum=ani.session.v1.WorkloadKind" json:"workload_kind,omitempty"`
+	// Resource-owned binding, accepted only from the authenticated Governance peer.
+	InstanceBinding *InstanceBinding `protobuf:"bytes,4,opt,name=instance_binding,json=instanceBinding,proto3" json:"instance_binding,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Target) Reset() {
@@ -352,6 +354,121 @@ func (x *Target) GetWorkloadKind() WorkloadKind {
 	return WorkloadKind_WORKLOAD_KIND_UNSPECIFIED
 }
 
+func (x *Target) GetInstanceBinding() *InstanceBinding {
+	if x != nil {
+		return x.InstanceBinding
+	}
+	return nil
+}
+
+type InstanceBinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       int64                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	ClusterId     string                 `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	Namespace     string                 `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	NotebookName  string                 `protobuf:"bytes,4,opt,name=notebook_name,json=notebookName,proto3" json:"notebook_name,omitempty"`
+	NotebookUid   string                 `protobuf:"bytes,5,opt,name=notebook_uid,json=notebookUid,proto3" json:"notebook_uid,omitempty"`
+	PodName       string                 `protobuf:"bytes,6,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
+	PodUid        string                 `protobuf:"bytes,7,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
+	ContainerName string                 `protobuf:"bytes,8,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	Shell         string                 `protobuf:"bytes,9,opt,name=shell,proto3" json:"shell,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstanceBinding) Reset() {
+	*x = InstanceBinding{}
+	mi := &file_session_v1_session_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstanceBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstanceBinding) ProtoMessage() {}
+
+func (x *InstanceBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_session_v1_session_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstanceBinding.ProtoReflect.Descriptor instead.
+func (*InstanceBinding) Descriptor() ([]byte, []int) {
+	return file_session_v1_session_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *InstanceBinding) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *InstanceBinding) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *InstanceBinding) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *InstanceBinding) GetNotebookName() string {
+	if x != nil {
+		return x.NotebookName
+	}
+	return ""
+}
+
+func (x *InstanceBinding) GetNotebookUid() string {
+	if x != nil {
+		return x.NotebookUid
+	}
+	return ""
+}
+
+func (x *InstanceBinding) GetPodName() string {
+	if x != nil {
+		return x.PodName
+	}
+	return ""
+}
+
+func (x *InstanceBinding) GetPodUid() string {
+	if x != nil {
+		return x.PodUid
+	}
+	return ""
+}
+
+func (x *InstanceBinding) GetContainerName() string {
+	if x != nil {
+		return x.ContainerName
+	}
+	return ""
+}
+
+func (x *InstanceBinding) GetShell() string {
+	if x != nil {
+		return x.Shell
+	}
+	return ""
+}
+
 type ExecOptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Container     string                 `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
@@ -365,7 +482,7 @@ type ExecOptions struct {
 
 func (x *ExecOptions) Reset() {
 	*x = ExecOptions{}
-	mi := &file_session_v1_session_proto_msgTypes[3]
+	mi := &file_session_v1_session_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -377,7 +494,7 @@ func (x *ExecOptions) String() string {
 func (*ExecOptions) ProtoMessage() {}
 
 func (x *ExecOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[3]
+	mi := &file_session_v1_session_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -390,7 +507,7 @@ func (x *ExecOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecOptions.ProtoReflect.Descriptor instead.
 func (*ExecOptions) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{3}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ExecOptions) GetContainer() string {
@@ -438,7 +555,7 @@ type VMConsoleOptions struct {
 
 func (x *VMConsoleOptions) Reset() {
 	*x = VMConsoleOptions{}
-	mi := &file_session_v1_session_proto_msgTypes[4]
+	mi := &file_session_v1_session_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -450,7 +567,7 @@ func (x *VMConsoleOptions) String() string {
 func (*VMConsoleOptions) ProtoMessage() {}
 
 func (x *VMConsoleOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[4]
+	mi := &file_session_v1_session_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -463,7 +580,7 @@ func (x *VMConsoleOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMConsoleOptions.ProtoReflect.Descriptor instead.
 func (*VMConsoleOptions) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{4}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *VMConsoleOptions) GetProtocol() VMConsoleOptions_Protocol {
@@ -492,7 +609,7 @@ type CreateSessionResponse struct {
 
 func (x *CreateSessionResponse) Reset() {
 	*x = CreateSessionResponse{}
-	mi := &file_session_v1_session_proto_msgTypes[5]
+	mi := &file_session_v1_session_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -504,7 +621,7 @@ func (x *CreateSessionResponse) String() string {
 func (*CreateSessionResponse) ProtoMessage() {}
 
 func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[5]
+	mi := &file_session_v1_session_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -517,7 +634,7 @@ func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionResponse.ProtoReflect.Descriptor instead.
 func (*CreateSessionResponse) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{5}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateSessionResponse) GetSessionId() string {
@@ -566,12 +683,24 @@ const file_session_v1_session_proto_rawDesc = "" +
 	"\tPrincipal\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
-	"subject_id\x18\x02 \x01(\tR\tsubjectId\"\x91\x01\n" +
+	"subject_id\x18\x02 \x01(\tR\tsubjectId\"\xdd\x01\n" +
 	"\x06Target\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\tR\n" +
 	"instanceId\x12#\n" +
 	"\rworkload_name\x18\x02 \x01(\tR\fworkloadName\x12A\n" +
-	"\rworkload_kind\x18\x03 \x01(\x0e2\x1c.ani.session.v1.WorkloadKindR\fworkloadKind\"\x7f\n" +
+	"\rworkload_kind\x18\x03 \x01(\x0e2\x1c.ani.session.v1.WorkloadKindR\fworkloadKind\x12J\n" +
+	"\x10instance_binding\x18\x04 \x01(\v2\x1f.ani.session.v1.InstanceBindingR\x0finstanceBinding\"\xa1\x02\n" +
+	"\x0fInstanceBinding\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x03R\aversion\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12\x1c\n" +
+	"\tnamespace\x18\x03 \x01(\tR\tnamespace\x12#\n" +
+	"\rnotebook_name\x18\x04 \x01(\tR\fnotebookName\x12!\n" +
+	"\fnotebook_uid\x18\x05 \x01(\tR\vnotebookUid\x12\x19\n" +
+	"\bpod_name\x18\x06 \x01(\tR\apodName\x12\x17\n" +
+	"\apod_uid\x18\a \x01(\tR\x06podUid\x12%\n" +
+	"\x0econtainer_name\x18\b \x01(\tR\rcontainerName\x12\x14\n" +
+	"\x05shell\x18\t \x01(\tR\x05shell\"\x7f\n" +
 	"\vExecOptions\x12\x1c\n" +
 	"\tcontainer\x18\x01 \x01(\tR\tcontainer\x12\x18\n" +
 	"\acommand\x18\x02 \x03(\tR\acommand\x12\x10\n" +
@@ -615,33 +744,35 @@ func file_session_v1_session_proto_rawDescGZIP() []byte {
 }
 
 var file_session_v1_session_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_session_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_session_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_session_v1_session_proto_goTypes = []any{
 	(WorkloadKind)(0),              // 0: ani.session.v1.WorkloadKind
 	(VMConsoleOptions_Protocol)(0), // 1: ani.session.v1.VMConsoleOptions.Protocol
 	(*CreateSessionRequest)(nil),   // 2: ani.session.v1.CreateSessionRequest
 	(*Principal)(nil),              // 3: ani.session.v1.Principal
 	(*Target)(nil),                 // 4: ani.session.v1.Target
-	(*ExecOptions)(nil),            // 5: ani.session.v1.ExecOptions
-	(*VMConsoleOptions)(nil),       // 6: ani.session.v1.VMConsoleOptions
-	(*CreateSessionResponse)(nil),  // 7: ani.session.v1.CreateSessionResponse
-	(*timestamppb.Timestamp)(nil),  // 8: google.protobuf.Timestamp
+	(*InstanceBinding)(nil),        // 5: ani.session.v1.InstanceBinding
+	(*ExecOptions)(nil),            // 6: ani.session.v1.ExecOptions
+	(*VMConsoleOptions)(nil),       // 7: ani.session.v1.VMConsoleOptions
+	(*CreateSessionResponse)(nil),  // 8: ani.session.v1.CreateSessionResponse
+	(*timestamppb.Timestamp)(nil),  // 9: google.protobuf.Timestamp
 }
 var file_session_v1_session_proto_depIdxs = []int32{
 	3, // 0: ani.session.v1.CreateSessionRequest.principal:type_name -> ani.session.v1.Principal
 	4, // 1: ani.session.v1.CreateSessionRequest.target:type_name -> ani.session.v1.Target
-	5, // 2: ani.session.v1.CreateSessionRequest.exec:type_name -> ani.session.v1.ExecOptions
-	6, // 3: ani.session.v1.CreateSessionRequest.vm_console:type_name -> ani.session.v1.VMConsoleOptions
+	6, // 2: ani.session.v1.CreateSessionRequest.exec:type_name -> ani.session.v1.ExecOptions
+	7, // 3: ani.session.v1.CreateSessionRequest.vm_console:type_name -> ani.session.v1.VMConsoleOptions
 	0, // 4: ani.session.v1.Target.workload_kind:type_name -> ani.session.v1.WorkloadKind
-	1, // 5: ani.session.v1.VMConsoleOptions.protocol:type_name -> ani.session.v1.VMConsoleOptions.Protocol
-	8, // 6: ani.session.v1.CreateSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
-	2, // 7: ani.session.v1.SessionService.CreateSession:input_type -> ani.session.v1.CreateSessionRequest
-	7, // 8: ani.session.v1.SessionService.CreateSession:output_type -> ani.session.v1.CreateSessionResponse
-	8, // [8:9] is the sub-list for method output_type
-	7, // [7:8] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	5, // 5: ani.session.v1.Target.instance_binding:type_name -> ani.session.v1.InstanceBinding
+	1, // 6: ani.session.v1.VMConsoleOptions.protocol:type_name -> ani.session.v1.VMConsoleOptions.Protocol
+	9, // 7: ani.session.v1.CreateSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
+	2, // 8: ani.session.v1.SessionService.CreateSession:input_type -> ani.session.v1.CreateSessionRequest
+	8, // 9: ani.session.v1.SessionService.CreateSession:output_type -> ani.session.v1.CreateSessionResponse
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_session_v1_session_proto_init() }
@@ -659,7 +790,7 @@ func file_session_v1_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_session_v1_session_proto_rawDesc), len(file_session_v1_session_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

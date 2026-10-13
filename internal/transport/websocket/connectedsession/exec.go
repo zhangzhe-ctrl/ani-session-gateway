@@ -28,12 +28,14 @@ func (m *Module) openExecStream(ctx context.Context, access session.ClaimedAcces
 		return nil, runtimeport.ErrInvalidTarget
 	}
 	target := runtimeport.ExecTarget{
-		TenantID:     access.Identity.TenantID,
-		WorkloadName: access.Target.WorkloadName,
-		WorkloadKind: access.Target.WorkloadKind,
-		Container:    access.Exec.Container,
-		Command:      append([]string(nil), access.Exec.Command...),
-		TTY:          access.Exec.TTY,
+		InstanceID:      access.Identity.InstanceID,
+		InstanceBinding: access.Target.InstanceBinding,
+		TenantID:        access.Identity.TenantID,
+		WorkloadName:    access.Target.WorkloadName,
+		WorkloadKind:    access.Target.WorkloadKind,
+		Container:       access.Exec.Container,
+		Command:         append([]string(nil), access.Exec.Command...),
+		TTY:             access.Exec.TTY,
 	}
 	return m.exec.OpenExec(ctx, target, access.Exec.Size)
 }

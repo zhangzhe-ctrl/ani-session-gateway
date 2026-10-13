@@ -28,6 +28,11 @@ func (s *SessionServer) CreateSession(ctx context.Context, request *sessionv1.Cr
 	if s.manager == nil {
 		return nil, status.Error(codes.Unimplemented, "session creation is not configured")
 	}
+	if request != nil && request.Target != nil && request.Target.InstanceBinding != nil {
+		if !authenticatedGovernance(ctx) {
+			return nil, status.Error(codes.PermissionDenied, "managed instance requires authenticated Governance")
+		}
+	}
 	mapped, err := mapRequest(request)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid session request")
@@ -39,12 +44,13 @@ func (s *SessionServer) CreateSession(ctx context.Context, request *sessionv1.Cr
 	return &sessionv1.CreateSessionResponse{SessionId: issued.Session.ID, ConnectUrl: s.manager.ConnectURL(issued), ExpiresAt: timestamppb.New(issued.Session.TicketExpiresAt), Replayed: issued.Replayed}, nil
 }
 
-func New(sessionServer sessionv1.SessionServiceServer) *grpc.Server {
-	server := grpc.NewServer(grpc.ChainUnaryInterceptor(func(ctx context.Context, request any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+func New(sessionServer sessionv1.SessionServiceServer, options ...grpc.ServerOption) *grpc.Server {
+	tracing := grpc.ChainUnaryInterceptor(func(ctx context.Context, request any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		ctx, span := observability.StartSpan(ctx, info.FullMethod)
 		defer span.End()
 		return handler(ctx, request)
-	}))
+	})
+	server := grpc.NewServer(append([]grpc.ServerOption{tracing}, options...)...)
 	if sessionServer == nil {
 		sessionServer = &SessionServer{}
 	}
@@ -61,6 +67,9 @@ func mapRequest(request *sessionv1.CreateSessionRequest) (session.Request, error
 		return session.Request{}, errors.New("principal and target are required")
 	}
 	mapped := session.Request{RequestID: request.RequestId, IdempotencyKey: request.IdempotencyKey, TenantID: request.Principal.TenantId, SubjectID: request.Principal.SubjectId, InstanceID: request.Target.InstanceId, WorkloadName: request.Target.WorkloadName}
+	if b := request.Target.InstanceBinding; b != nil {
+		mapped.InstanceBinding = session.InstanceBinding{Enabled: true, Version: b.Version, ClusterID: b.ClusterId, Namespace: b.Namespace, NotebookName: b.NotebookName, NotebookUID: b.NotebookUid, PodName: b.PodName, PodUID: b.PodUid, ContainerName: b.ContainerName, Shell: b.Shell}
+	}
 	switch request.Target.WorkloadKind {
 	case sessionv1.WorkloadKind_WORKLOAD_KIND_CONTAINER:
 		mapped.WorkloadKind = session.WorkloadContainer

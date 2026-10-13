@@ -20,6 +20,7 @@ import (
 )
 
 type ManagerConfig struct {
+	InstanceValidator   InstanceValidator
 	PublicWSBaseURL     *url.URL
 	TicketKey           [32]byte
 	TicketTTL           time.Duration
@@ -30,6 +31,9 @@ type ManagerConfig struct {
 	Now                 func() time.Time
 	Random              io.Reader
 	Observer            Observer
+}
+type InstanceValidator interface {
+	Validate(context.Context, string, string, InstanceBinding) error
 }
 
 type Observer interface {
@@ -83,6 +87,14 @@ func (m *Manager) Issue(ctx context.Context, request Request) (Issued, error) {
 		result = "invalid"
 		return Issued{}, err
 	}
+	if request.InstanceBinding.Enabled {
+		if m.config.InstanceValidator == nil {
+			return Issued{}, ErrUnavailable
+		}
+		if e := m.config.InstanceValidator.Validate(ctx, request.TenantID, request.InstanceID, request.InstanceBinding); e != nil {
+			return Issued{}, e
+		}
+	}
 	now := m.config.Now().UTC()
 	ticketBytes := make([]byte, 32)
 	if _, err := io.ReadFull(m.config.Random, ticketBytes); err != nil {
@@ -99,7 +111,8 @@ func (m *Manager) Issue(ctx context.Context, request Request) (Issued, error) {
 		return Issued{}, fmt.Errorf("generate session ID: %w", err)
 	}
 	candidate := Session{
-		ID: id, IdempotencyKey: request.IdempotencyKey, RequestFingerprint: Fingerprint(request), TicketDigest: digest, TicketCiphertext: ciphertext,
+		InstanceBinding: request.InstanceBinding,
+		ID:              id, IdempotencyKey: request.IdempotencyKey, RequestFingerprint: Fingerprint(request), TicketDigest: digest, TicketCiphertext: ciphertext,
 		TenantID: request.TenantID, SubjectID: request.SubjectID, InstanceID: request.InstanceID, WorkloadName: request.WorkloadName,
 		WorkloadKind: request.WorkloadKind, Mode: request.Mode, Container: request.Container, Command: append([]string(nil), request.Command...),
 		TTY: request.TTY, Rows: request.Rows, Cols: request.Cols, RequestedProtocol: request.RequestedProtocol, State: StateIssued,
@@ -162,8 +175,9 @@ func (m *Manager) Claim(ctx context.Context, sessionID, ticket string) (ClaimedA
 			InstanceID: lease.Session.InstanceID,
 		},
 		Target: Target{
-			WorkloadName: lease.Session.WorkloadName,
-			WorkloadKind: lease.Session.WorkloadKind,
+			InstanceBinding: lease.Session.InstanceBinding,
+			WorkloadName:    lease.Session.WorkloadName,
+			WorkloadKind:    lease.Session.WorkloadKind,
 		},
 		Mode: lease.Session.Mode,
 	}
@@ -232,6 +246,9 @@ func randomID(source io.Reader) (string, error) {
 }
 
 func validateRequest(r Request) error {
+	if b := r.InstanceBinding; b.Enabled && (b.Version < 1 || b.ClusterID == "" || b.Namespace == "" || b.NotebookName == "" || b.NotebookUID == "" || b.PodName == "" || b.PodUID == "" || b.ContainerName != r.Container || b.Shell == "" || r.Mode != ModeExec) {
+		return ErrInvalidRequest
+	}
 	if r.IdempotencyKey == "" || r.TenantID == "" || r.SubjectID == "" || r.InstanceID == "" || r.WorkloadName == "" {
 		return fmt.Errorf("%w: idempotency key, principal, instance, and workload are required", ErrInvalidRequest)
 	}
@@ -275,6 +292,11 @@ func Fingerprint(r Request) [32]byte {
 	write(fmt.Sprintf("%d", r.Rows))
 	write(fmt.Sprintf("%d", r.Cols))
 	write(r.RequestedProtocol)
+	if b := r.InstanceBinding; b.Enabled {
+		for _, v := range []string{fmt.Sprint(b.Version), b.ClusterID, b.Namespace, b.NotebookName, b.NotebookUID, b.PodName, b.PodUID, b.ContainerName, b.Shell} {
+			write(v)
+		}
+	}
 	var result [32]byte
 	copy(result[:], h.Sum(nil))
 	return result

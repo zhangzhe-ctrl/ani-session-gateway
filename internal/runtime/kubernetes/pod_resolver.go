@@ -50,10 +50,21 @@ func (r *PodResolver) Resolve(ctx context.Context, target runtimeport.ExecTarget
 		return ResolvedPod{}, runtimeport.ErrInvalidTarget
 	}
 	namespace, err := NamespaceForTenant(target.TenantID)
+	managed := target.InstanceBinding.Enabled
+	if managed {
+		namespace = target.InstanceBinding.Namespace
+		err = nil
+		if len(validation.IsDNS1123Label(namespace)) != 0 {
+			return ResolvedPod{}, runtimeport.ErrInvalidTarget
+		}
+	}
 	if err != nil {
 		return ResolvedPod{}, err
 	}
 	selector := labels.Set{tenantLabel: target.TenantID, instanceLabel: target.WorkloadName}.AsSelector().String()
+	if managed {
+		selector = labels.Set{"accelerator.ani.io/resource-tenant-id": target.TenantID, "accelerator.ani.io/resource-id": target.InstanceID, "accelerator.ani.io/owner-service": "ani-resource-service"}.AsSelector().String()
+	}
 	pods, err := r.client.ListPods(ctx, namespace, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return ResolvedPod{}, fmt.Errorf("%w: list eligible pods", runtimeport.ErrUnavailable)
@@ -61,7 +72,12 @@ func (r *PodResolver) Resolve(ctx context.Context, target runtimeport.ExecTarget
 	eligible := make([]corev1.Pod, 0, len(pods.Items))
 	matched := false
 	for _, pod := range pods.Items {
-		if pod.Labels[tenantLabel] != target.TenantID || pod.Labels[instanceLabel] != target.WorkloadName {
+		if managed {
+			b := target.InstanceBinding
+			if pod.Namespace != namespace || pod.Name != b.PodName || string(pod.UID) != b.PodUID || pod.Labels["accelerator.ani.io/resource-tenant-id"] != target.TenantID || pod.Labels["accelerator.ani.io/resource-id"] != target.InstanceID || pod.Labels["accelerator.ani.io/owner-service"] != "ani-resource-service" {
+				continue
+			}
+		} else if pod.Labels[tenantLabel] != target.TenantID || pod.Labels[instanceLabel] != target.WorkloadName {
 			continue
 		}
 		matched = true
@@ -82,6 +98,9 @@ func (r *PodResolver) Resolve(ctx context.Context, target runtimeport.ExecTarget
 		return eligible[i].CreationTimestamp.After(eligible[j].CreationTimestamp.Time)
 	})
 	selected := eligible[0]
+	if managed && len(eligible) != 1 {
+		return ResolvedPod{}, runtimeport.ErrInvalidTarget
+	}
 	container := target.Container
 	if container == "" {
 		if len(selected.Spec.Containers) != 1 {

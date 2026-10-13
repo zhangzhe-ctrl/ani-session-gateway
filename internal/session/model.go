@@ -30,6 +30,7 @@ const (
 type TerminalSize struct{ Rows, Cols uint16 }
 
 type Request struct {
+	InstanceBinding   InstanceBinding
 	RequestID         string
 	IdempotencyKey    string
 	TenantID          string
@@ -47,6 +48,7 @@ type Request struct {
 }
 
 type Session struct {
+	InstanceBinding    InstanceBinding
 	ID                 string
 	IdempotencyKey     string
 	RequestFingerprint [32]byte
@@ -113,8 +115,15 @@ type Identity struct {
 }
 
 type Target struct {
-	WorkloadName string
-	WorkloadKind WorkloadKind
+	InstanceBinding InstanceBinding
+	WorkloadName    string
+	WorkloadKind    WorkloadKind
+}
+
+type InstanceBinding struct {
+	Enabled                                                                                bool
+	Version                                                                                int64
+	ClusterID, Namespace, NotebookName, NotebookUID, PodName, PodUID, ContainerName, Shell string
 }
 
 type ExecOptions struct {
