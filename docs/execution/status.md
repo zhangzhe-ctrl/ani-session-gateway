@@ -1,5 +1,10 @@
 # Execution Status
 
+The 2026-10-23 VM MVP implementation is tracked only by Resource's
+`docs/execution/status.md#vm-mvp`; the Session Gateway implementation evidence
+is [VM-MVP-CONSOLE-20261023](records/VM-MVP-CONSOLE-20261023.md). The P0 rows below
+are historical and do not represent VM MVP acceptance.
+
 ```yaml
 project: ANI Realtime Session Gateway P0
 design_revision: v1.2

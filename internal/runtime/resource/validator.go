@@ -10,6 +10,7 @@ import (
 	"time"
 
 	pb "github.com/zhangzhe-ctrl/ani-resource-service/api/instance/terminal/v1"
+	consolev1 "github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console/v1"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -19,7 +20,8 @@ import (
 )
 
 type Validator struct {
-	client pb.InstanceTerminalServiceClient
+	client   pb.InstanceTerminalServiceClient
+	vmClient consolev1.VMConsoleServiceClient
 }
 
 func NewFromEnv() (*Validator, func(), error) {
@@ -58,7 +60,26 @@ func NewFromEnv() (*Validator, func(), error) {
 	if e != nil {
 		return nil, nil, e
 	}
-	return &Validator{pb.NewInstanceTerminalServiceClient(conn)}, func() { _ = conn.Close() }, nil
+	return &Validator{client: pb.NewInstanceTerminalServiceClient(conn), vmClient: consolev1.NewVMConsoleServiceClient(conn)}, func() { _ = conn.Close() }, nil
+}
+
+func (v *Validator) ValidateVM(ctx context.Context, b session.VMBinding) error {
+	if v == nil || v.vmClient == nil || !session.ValidVMBinding(b) {
+		return session.ErrUnavailable
+	}
+	ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(ctx, metadata.MD{}), 3*time.Second)
+	defer cancel()
+	result, err := v.vmClient.ValidateConsoleSession(ctx, &consolev1.VMConsoleBinding{TenantId: b.TenantID, VmId: b.VMID, Version: b.Version, ClusterId: b.ClusterID, Namespace: b.Namespace, VmName: b.VMName, VmUid: b.VMUID, VmiName: b.VMIName, VmiUid: b.VMIUID, NamespaceUid: b.NamespaceUID})
+	if err != nil {
+		if status.Code(err) == codes.FailedPrecondition || status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+			return session.ErrFailedPrecondition
+		}
+		return session.ErrUnavailable
+	}
+	if result == nil || !result.Valid {
+		return session.ErrFailedPrecondition
+	}
+	return nil
 }
 func (v *Validator) Validate(ctx context.Context, tenant, id string, b session.InstanceBinding) error {
 	if v == nil || v.client == nil || !b.Enabled {

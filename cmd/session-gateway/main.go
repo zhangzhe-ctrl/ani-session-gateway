@@ -79,7 +79,12 @@ func run() (runErr error) {
 	if err != nil {
 		return err
 	}
-	manager, err := session.NewManager(selectedStore, session.ManagerConfig{InstanceValidator: validator, PublicWSBaseURL: cfg.PublicWSBaseURL, TicketKey: cfg.TicketKey, TicketTTL: cfg.TicketTTL, SessionMaxDuration: cfg.SessionMaxDuration, IdempotencyTTL: cfg.IdempotencyTTL, MaxActive: cfg.MaxActiveSessions, MaxActivePerSubject: cfg.MaxActivePerSubject, Observer: probes.SessionMetrics()})
+	var instanceAuthority session.InstanceValidator
+	var vmAuthority session.VMValidator
+	if validator != nil {
+		instanceAuthority, vmAuthority = validator, validator
+	}
+	manager, err := session.NewManager(selectedStore, session.ManagerConfig{InstanceValidator: instanceAuthority, VMValidator: vmAuthority, PublicWSBaseURL: cfg.PublicWSBaseURL, TicketKey: cfg.TicketKey, TicketTTL: cfg.TicketTTL, SessionMaxDuration: cfg.SessionMaxDuration, IdempotencyTTL: cfg.IdempotencyTTL, MaxActive: cfg.MaxActiveSessions, MaxActivePerSubject: cfg.MaxActivePerSubject, Observer: probes.SessionMetrics()})
 	if err != nil {
 		return fmt.Errorf("initialize session manager: %w", err)
 	}
@@ -102,6 +107,9 @@ func run() (runErr error) {
 	vmRuntime, err := kubevirtruntime.NewAdapter(kubernetesConfig, cfg.WSHandshakeTimeout)
 	if err != nil {
 		return fmt.Errorf("initialize KubeVirt client: %w", err)
+	}
+	if validator != nil {
+		vmRuntime.ConfigureVMValidator(validator, os.Getenv("RESOURCE_INSTANCE_CLUSTER_ID"))
 	}
 	connectedSessions, err := connectedsession.New(connectedsession.Dependencies{
 		Manager: manager,

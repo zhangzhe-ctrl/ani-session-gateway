@@ -34,6 +34,7 @@ const (
 	OutcomeInvalidVNCFrame      Outcome = "invalid_vnc_frame"
 	OutcomeBackpressure         Outcome = "backpressure"
 	OutcomeRuntimeUnavailable   Outcome = "runtime_unavailable"
+	OutcomeTargetChanged        Outcome = "target_changed"
 	OutcomeRuntimeFailed        Outcome = "runtime_failed"
 	OutcomeTransportFailed      Outcome = "transport_failed"
 	OutcomeShutdown             Outcome = "shutdown"
@@ -129,8 +130,12 @@ func (m *Module) Run(ctx context.Context, accepted Accepted) Outcome {
 	stream, err := m.openByteStream(runCtx, accepted.Access)
 	if err != nil {
 		cancel()
-		m.complete(ctx, accepted, observation, time.Time{}, OutcomeRuntimeUnavailable, 0, 0)
-		return OutcomeRuntimeUnavailable
+		outcome := OutcomeRuntimeUnavailable
+		if errors.Is(err, runtimeport.ErrTargetChanged) {
+			outcome = OutcomeTargetChanged
+		}
+		m.complete(ctx, accepted, observation, time.Time{}, outcome, 0, 0)
+		return outcome
 	}
 	connectedAt := m.clock.Now()
 	observation.Connected(connectedAt)
@@ -140,7 +145,7 @@ func (m *Module) Run(ctx context.Context, accepted Accepted) Outcome {
 }
 
 func (m *Module) openByteStream(ctx context.Context, access session.ClaimedAccess) (runtimeport.ByteStream, error) {
-	target := runtimeport.VMTarget{TenantID: access.Identity.TenantID, WorkloadName: access.Target.WorkloadName}
+	target := runtimeport.VMTarget{TenantID: access.Identity.TenantID, InstanceID: access.Identity.InstanceID, WorkloadName: access.Target.WorkloadName, Binding: access.Target.VMBinding}
 	switch access.Mode {
 	case session.ModeSerial:
 		return m.vm.OpenSerial(ctx, target)
@@ -309,6 +314,8 @@ func (m *Module) writeFinal(conn *websocket.Conn, mode session.Mode, outcome Out
 		status, reason = websocket.StatusMessageTooBig, "message too big"
 	} else if outcome == OutcomeShutdown {
 		status, reason = websocket.StatusGoingAway, "server shutdown"
+	} else if outcome == OutcomeTargetChanged {
+		status, reason = websocket.StatusPolicyViolation, "console target changed"
 	} else if mode == session.ModeVNC {
 		reason = "console stream failed"
 	} else {

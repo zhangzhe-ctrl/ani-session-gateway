@@ -16,6 +16,33 @@ type Factory func(*testing.T) session.Store
 
 func Run(t *testing.T, factory Factory) {
 	t.Helper()
+	t.Run("read only replay and VM binding persistence", func(t *testing.T) {
+		store := factory(t)
+		ctx := context.Background()
+		if _, err := store.GetByKey(ctx, "missing"); !errors.Is(err, session.ErrNotFound) {
+			t.Fatalf("missing lookup error=%v", err)
+		}
+		value := candidate("vm-console", "vm-console-key", "subject", time.Now().UTC())
+		value.VMBinding = session.VMBinding{Enabled: true, TenantID: "tenant", VMID: "vm-id", Version: 9, ClusterID: "cluster", Namespace: "frozen-namespace", VMName: "vm", VMUID: "vm-uid", VMIName: "vm", VMIUID: "vmi-uid", NamespaceUID: "namespace-uid"}
+		if _, _, err := store.CreateOrGet(ctx, value.IdempotencyKey, value); err != nil {
+			t.Fatal(err)
+		}
+		for range 2 {
+			got, err := store.GetByKey(ctx, value.IdempotencyKey)
+			if err != nil || got.ID != value.ID || got.VMBinding != value.VMBinding || string(got.TicketCiphertext) != string(value.TicketCiphertext) || got.State != session.StateIssued {
+				t.Fatalf("lookup changed original session: %v", err)
+			}
+			got.TicketCiphertext[0] = 'x'
+		}
+		lease, err := store.ClaimAndReserve(ctx, value.ID, value.TicketDigest, value.CreatedAt, limits(1, 1, time.Minute))
+		if err != nil || lease.Session.VMBinding != value.VMBinding {
+			t.Fatalf("claim lost original binding: %v", err)
+		}
+		got, err := store.GetByKey(ctx, value.IdempotencyKey)
+		if err != nil || got.State != session.StateClaimed || len(got.TicketCiphertext) != 0 {
+			t.Fatalf("lookup returned claimable ticket after claim: %v", err)
+		}
+	})
 	t.Run("idempotency and state", func(t *testing.T) {
 		store := factory(t)
 		now := time.Now().UTC()

@@ -3,7 +3,7 @@ set -eu
 mode="${1:-generate}"
 root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$root"
-dependency="$(cd "$root/api" && go list -m -f '{{.Dir}}' github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console)"
+dependency="$(go list -m -f '{{.Dir}}' github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console)"
 test -f "$dependency/v1/console.proto"
 workspace="$(mktemp -d)"
 trap 'rm -rf "$workspace"' EXIT INT TERM

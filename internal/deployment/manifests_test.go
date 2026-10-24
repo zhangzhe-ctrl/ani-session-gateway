@@ -201,9 +201,11 @@ func assertServices(t *testing.T, services map[string]*corev1.Service) {
 func assertRBAC(t *testing.T, role *rbacv1.ClusterRole, binding *rbacv1.ClusterRoleBinding) {
 	t.Helper()
 	want := []string{
+		"|namespaces|get",
 		"|pods|get,list",
 		"|pods/exec|create",
 		"kubevirt.io|virtualmachineinstances|get",
+		"kubevirt.io|virtualmachines|get",
 		"subresources.kubevirt.io|virtualmachineinstances/console,virtualmachineinstances/vnc|get",
 	}
 	got := make([]string, 0, len(role.Rules))

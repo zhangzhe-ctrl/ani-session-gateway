@@ -21,6 +21,11 @@ func (s *tracedStore) CreateOrGet(ctx context.Context, key string, candidate ses
 	defer span.End()
 	return s.next.CreateOrGet(ctx, key, candidate)
 }
+func (s *tracedStore) GetByKey(ctx context.Context, key string) (session.Session, error) {
+	ctx, span := StartSpan(ctx, "session_store.get_by_key")
+	defer span.End()
+	return s.next.GetByKey(ctx, key)
+}
 func (s *tracedStore) ClaimAndReserve(ctx context.Context, id string, digest [32]byte, now time.Time, limits session.ClaimLimits) (session.SessionLease, error) {
 	ctx, span := StartSpan(ctx, "session_store.claim_and_reserve")
 	defer span.End()

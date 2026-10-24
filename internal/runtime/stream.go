@@ -12,6 +12,7 @@ var (
 	ErrInvalidTarget      = errors.New("invalid runtime target")
 	ErrTargetNotFound     = errors.New("runtime target not found")
 	ErrTargetNotReady     = errors.New("runtime target not ready")
+	ErrTargetChanged      = errors.New("runtime target changed")
 	ErrAmbiguousContainer = errors.New("runtime container is ambiguous")
 	ErrBackpressure       = errors.New("runtime backpressure limit exceeded")
 	ErrUnavailable        = errors.New("runtime unavailable")
@@ -28,7 +29,10 @@ type ExecTarget struct {
 	TTY             bool
 }
 
-type VMTarget struct{ TenantID, WorkloadName string }
+type VMTarget struct {
+	TenantID, InstanceID, WorkloadName string
+	Binding                            session.VMBinding
+}
 
 type ExecRuntime interface {
 	OpenExec(context.Context, ExecTarget, session.TerminalSize) (ExecStream, error)

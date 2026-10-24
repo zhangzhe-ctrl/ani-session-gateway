@@ -37,6 +37,28 @@ VNC uses the `binary` WebSocket message type as a transparent RFB byte stream. I
 
 Text frames are rejected with status `1011`; their contents are never reflected in the close reason, logs, metrics, or traces.
 
+Managed VM VNC uses `Target.vm_binding` from Resource's pure console API module.
+Only the verified `spiffe://ani.internal/service/ani-governance` peer may issue
+or read a managed session. The binding fixes the tenant, VM ID, business version,
+cluster, namespace UID, VM UID and VMI UID; it is persisted with the ticket and
+included in the request fingerprint. Instance and VM bindings are exclusive.
+
+When Resource validation is configured, VNC cannot fall back to a name-only
+target. Before native VNC upgrade and again before forwarding any RFB bytes, the
+adapter checks the frozen namespace/VM/VMI identity and VMI controller owner,
+then calls Resource to recheck business ownership, version and closing intent.
+A changed target closes the native stream and WebSocket with `1008`,
+`console target changed`. Guest IP, Guest Agent, OS installation and completion
+of the create operation are not console admission conditions.
+
+`GetSessionReplay` is an authenticated, read-only lookup of an existing VM/VNC
+intent by key, tenant, subject, VM ID and original expected version. It returns
+the original still-claimable session and ticket without creating, reserving,
+renewing or revalidating a target. Governance performs current authorization
+before this lookup; on a missing key, its pending DELETE fence rejects new
+session intents before it calls `CreateSession`. Claiming the returned old
+ticket still runs the native and Resource checks above.
+
 ## Lifecycle outcomes
 
 | Outcome | Trigger | Best-effort wire result |
@@ -50,6 +72,7 @@ Text frames are rejected with status `1011`; their contents are never reflected 
 | `invalid_vnc_frame` | Non-binary VNC frame | `1011` |
 | `backpressure` | A bounded input/output queue is full | sanitized `BACKPRESSURE_LIMIT`, then `1011` |
 | `runtime_unavailable` | Runtime stream cannot be opened | sanitized `RUNTIME_UNAVAILABLE`, then `1011` |
+| `target_changed` | Managed VM identity or closing intent changed before forwarding | `1008`, `console target changed` |
 | `runtime_failed` | An opened runtime stream fails | sanitized `RUNTIME_STREAM_FAILED`, then `1011` |
 | `transport_failed` | WebSocket read/write fails unexpectedly | best-effort `1011` |
 | `shutdown` | Server context is canceled | `1001`, `server shutdown` |

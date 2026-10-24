@@ -31,6 +31,7 @@ type TerminalSize struct{ Rows, Cols uint16 }
 
 type Request struct {
 	InstanceBinding   InstanceBinding
+	VMBinding         VMBinding
 	RequestID         string
 	IdempotencyKey    string
 	TenantID          string
@@ -49,6 +50,7 @@ type Request struct {
 
 type Session struct {
 	InstanceBinding    InstanceBinding
+	VMBinding          VMBinding
 	ID                 string
 	IdempotencyKey     string
 	RequestFingerprint [32]byte
@@ -116,6 +118,7 @@ type Identity struct {
 
 type Target struct {
 	InstanceBinding InstanceBinding
+	VMBinding       VMBinding
 	WorkloadName    string
 	WorkloadKind    WorkloadKind
 }
@@ -124,6 +127,30 @@ type InstanceBinding struct {
 	Enabled                                                                                bool
 	Version                                                                                int64
 	ClusterID, Namespace, NotebookName, NotebookUID, PodName, PodUID, ContainerName, Shell string
+}
+
+// VMBinding is the frozen Resource identity. No guest readiness or address is
+// part of console admission: a running installer must remain accessible.
+type VMBinding struct {
+	Enabled      bool
+	TenantID     string
+	VMID         string
+	Version      int64
+	ClusterID    string
+	Namespace    string
+	VMName       string
+	VMUID        string
+	VMIName      string
+	VMIUID       string
+	NamespaceUID string
+}
+
+type ReplayRequest struct {
+	IdempotencyKey  string
+	TenantID        string
+	SubjectID       string
+	InstanceID      string
+	ExpectedVersion int64
 }
 
 type ExecOptions struct {

@@ -28,9 +28,9 @@ func (s *SessionServer) CreateSession(ctx context.Context, request *sessionv1.Cr
 	if s.manager == nil {
 		return nil, status.Error(codes.Unimplemented, "session creation is not configured")
 	}
-	if request != nil && request.Target != nil && request.Target.InstanceBinding != nil {
+	if request != nil && request.Target != nil && (request.Target.InstanceBinding != nil || request.Target.VmBinding != nil) {
 		if !authenticatedGovernance(ctx) {
-			return nil, status.Error(codes.PermissionDenied, "managed instance requires authenticated Governance")
+			return nil, status.Error(codes.PermissionDenied, "managed target requires authenticated Governance")
 		}
 	}
 	mapped, err := mapRequest(request)
@@ -42,6 +42,23 @@ func (s *SessionServer) CreateSession(ctx context.Context, request *sessionv1.Cr
 		return nil, mapError(err)
 	}
 	return &sessionv1.CreateSessionResponse{SessionId: issued.Session.ID, ConnectUrl: s.manager.ConnectURL(issued), ExpiresAt: timestamppb.New(issued.Session.TicketExpiresAt), Replayed: issued.Replayed}, nil
+}
+
+func (s *SessionServer) GetSessionReplay(ctx context.Context, request *sessionv1.GetSessionReplayRequest) (*sessionv1.GetSessionReplayResponse, error) {
+	if !authenticatedGovernance(ctx) {
+		return nil, status.Error(codes.PermissionDenied, "session replay requires authenticated Governance")
+	}
+	if s.manager == nil {
+		return nil, status.Error(codes.Unimplemented, "session creation is not configured")
+	}
+	if request == nil || request.Principal == nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid session replay request")
+	}
+	issued, err := s.manager.Replay(ctx, session.ReplayRequest{IdempotencyKey: request.IdempotencyKey, TenantID: request.Principal.TenantId, SubjectID: request.Principal.SubjectId, InstanceID: request.InstanceId, ExpectedVersion: request.ExpectedVersion})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &sessionv1.GetSessionReplayResponse{SessionId: issued.Session.ID, ConnectUrl: s.manager.ConnectURL(issued), ExpiresAt: timestamppb.New(issued.Session.TicketExpiresAt), Replayed: true}, nil
 }
 
 func New(sessionServer sessionv1.SessionServiceServer, options ...grpc.ServerOption) *grpc.Server {
@@ -69,6 +86,9 @@ func mapRequest(request *sessionv1.CreateSessionRequest) (session.Request, error
 	mapped := session.Request{RequestID: request.RequestId, IdempotencyKey: request.IdempotencyKey, TenantID: request.Principal.TenantId, SubjectID: request.Principal.SubjectId, InstanceID: request.Target.InstanceId, WorkloadName: request.Target.WorkloadName}
 	if b := request.Target.InstanceBinding; b != nil {
 		mapped.InstanceBinding = session.InstanceBinding{Enabled: true, Version: b.Version, ClusterID: b.ClusterId, Namespace: b.Namespace, NotebookName: b.NotebookName, NotebookUID: b.NotebookUid, PodName: b.PodName, PodUID: b.PodUid, ContainerName: b.ContainerName, Shell: b.Shell}
+	}
+	if b := request.Target.VmBinding; b != nil {
+		mapped.VMBinding = session.VMBinding{Enabled: true, TenantID: b.TenantId, VMID: b.VmId, Version: b.Version, ClusterID: b.ClusterId, Namespace: b.Namespace, VMName: b.VmName, VMUID: b.VmUid, VMIName: b.VmiName, VMIUID: b.VmiUid, NamespaceUID: b.NamespaceUid}
 	}
 	switch request.Target.WorkloadKind {
 	case sessionv1.WorkloadKind_WORKLOAD_KIND_CONTAINER:
@@ -115,6 +135,8 @@ func mapError(err error) error {
 	switch {
 	case errors.Is(err, session.ErrInvalidRequest):
 		return status.Error(codes.InvalidArgument, "invalid session request")
+	case errors.Is(err, session.ErrNotFound):
+		return status.Error(codes.NotFound, "session replay not found")
 	case errors.Is(err, session.ErrConflict):
 		return status.Error(codes.AlreadyExists, "idempotency key conflicts with request")
 	case errors.Is(err, session.ErrFailedPrecondition):
