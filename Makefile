@@ -9,10 +9,10 @@ tools:
 	GOBIN=$(GOBIN) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.0
 
 generate:
-	buf generate
+	sh ./scripts/proto.sh generate
 
 lint:
-	buf lint
+	sh ./scripts/proto.sh lint
 
 contract:
 	cd api && go test ./openapi/...

@@ -4,6 +4,28 @@ info:
   version: 0.1.0
   description: Contract projection of the internal gRPC CreateSession interface.
 paths:
+  /ani.session.v1.SessionService/GetSessionReplay:
+    post:
+      operationId: getSessionReplay
+      summary: Read an existing VM console intent without issuing a new ticket.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetSessionReplayRequest'
+      responses:
+        '200':
+          description: Original session and ticket while still claimable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+        '403': {description: Requires the verified Governance mTLS identity.}
+        '404': {description: No prior session for this tenant and subject.}
+        '409': {description: VM or original version differs from the stored intent.}
+        '422': {description: Original ticket was claimed, closed or expired.}
+        '503': {description: Session store unavailable.}
   /ani.session.v1.SessionService/CreateSession:
     post:
       operationId: createSession
@@ -39,9 +61,33 @@ components:
       properties:
         instanceId: {type: string}
         workloadName: {type: string}
+        vmBinding: {$ref: '#/components/schemas/VMConsoleBinding'}
         workloadKind:
           type: string
           enum: [WORKLOAD_KIND_CONTAINER, WORKLOAD_KIND_GPU_CONTAINER, WORKLOAD_KIND_SANDBOX, WORKLOAD_KIND_VM]
+    VMConsoleBinding:
+      type: object
+      description: Resource-owned immutable identity, restricted to VM VNC and the exact Governance mTLS caller.
+      required: [tenantId, vmId, version, clusterId, namespace, vmName, vmUid, vmiName, vmiUid, namespaceUid]
+      properties:
+        tenantId: {type: string}
+        vmId: {type: string}
+        version: {type: integer, format: int64, minimum: 1}
+        clusterId: {type: string}
+        namespace: {type: string}
+        vmName: {type: string}
+        vmUid: {type: string}
+        vmiName: {type: string}
+        vmiUid: {type: string}
+        namespaceUid: {type: string}
+    GetSessionReplayRequest:
+      type: object
+      required: [idempotencyKey, principal, instanceId, expectedVersion]
+      properties:
+        idempotencyKey: {type: string}
+        principal: {$ref: '#/components/schemas/Principal'}
+        instanceId: {type: string}
+        expectedVersion: {type: integer, format: int64, minimum: 1}
     ExecOptions:
       type: object
       properties:
