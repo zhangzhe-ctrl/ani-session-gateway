@@ -21,6 +21,7 @@ import (
 
 type ManagerConfig struct {
 	InstanceValidator   InstanceValidator
+	VMValidator         VMValidator
 	PublicWSBaseURL     *url.URL
 	TicketKey           [32]byte
 	TicketTTL           time.Duration
@@ -34,6 +35,10 @@ type ManagerConfig struct {
 }
 type InstanceValidator interface {
 	Validate(context.Context, string, string, InstanceBinding) error
+}
+
+type VMValidator interface {
+	ValidateVM(context.Context, VMBinding) error
 }
 
 type Observer interface {
@@ -87,12 +92,23 @@ func (m *Manager) Issue(ctx context.Context, request Request) (Issued, error) {
 		result = "invalid"
 		return Issued{}, err
 	}
+	if m.config.VMValidator != nil && request.Mode == ModeVNC && !request.VMBinding.Enabled {
+		return Issued{}, ErrInvalidRequest
+	}
 	if request.InstanceBinding.Enabled {
 		if m.config.InstanceValidator == nil {
 			return Issued{}, ErrUnavailable
 		}
 		if e := m.config.InstanceValidator.Validate(ctx, request.TenantID, request.InstanceID, request.InstanceBinding); e != nil {
 			return Issued{}, e
+		}
+	}
+	if request.VMBinding.Enabled {
+		if m.config.VMValidator == nil {
+			return Issued{}, ErrUnavailable
+		}
+		if err := m.config.VMValidator.ValidateVM(ctx, request.VMBinding); err != nil {
+			return Issued{}, err
 		}
 	}
 	now := m.config.Now().UTC()
@@ -112,6 +128,7 @@ func (m *Manager) Issue(ctx context.Context, request Request) (Issued, error) {
 	}
 	candidate := Session{
 		InstanceBinding: request.InstanceBinding,
+		VMBinding:       request.VMBinding,
 		ID:              id, IdempotencyKey: request.IdempotencyKey, RequestFingerprint: Fingerprint(request), TicketDigest: digest, TicketCiphertext: ciphertext,
 		TenantID: request.TenantID, SubjectID: request.SubjectID, InstanceID: request.InstanceID, WorkloadName: request.WorkloadName,
 		WorkloadKind: request.WorkloadKind, Mode: request.Mode, Container: request.Container, Command: append([]string(nil), request.Command...),
@@ -150,6 +167,37 @@ func (m *Manager) ConnectURL(issued Issued) string {
 	return u.String()
 }
 
+// Replay reads only an earlier VM console intent. Governance calls it after
+// current authorization, before deciding whether a new intent may be admitted.
+// In particular a pending Governance DELETE must never call Issue to look up a
+// replay, since CreateOrGet is allowed to create on a missing key.
+func (m *Manager) Replay(ctx context.Context, request ReplayRequest) (Issued, error) {
+	if request.IdempotencyKey == "" || request.TenantID == "" || request.SubjectID == "" || request.InstanceID == "" || request.ExpectedVersion < 1 {
+		return Issued{}, ErrInvalidRequest
+	}
+	stored, err := m.store.GetByKey(ctx, request.IdempotencyKey)
+	if err != nil {
+		return Issued{}, err
+	}
+	if stored.TenantID != request.TenantID || stored.SubjectID != request.SubjectID {
+		return Issued{}, ErrNotFound
+	}
+	if !m.config.Now().Before(stored.TombstoneExpiresAt) {
+		return Issued{}, ErrNotFound
+	}
+	if stored.InstanceID != request.InstanceID || !stored.VMBinding.Enabled || stored.WorkloadKind != WorkloadVM || stored.Mode != ModeVNC || stored.VMBinding.Version != request.ExpectedVersion {
+		return Issued{}, ErrConflict
+	}
+	if stored.State != StateIssued || !m.config.Now().Before(stored.TicketExpiresAt) {
+		return Issued{}, ErrFailedPrecondition
+	}
+	ticket, err := m.decrypt(stored.TicketCiphertext)
+	if err != nil {
+		return Issued{}, ErrFailedPrecondition
+	}
+	return Issued{Session: stored, Ticket: string(ticket), Replayed: true}, nil
+}
+
 func (m *Manager) Claim(ctx context.Context, sessionID, ticket string) (ClaimedAccess, error) {
 	ctx, span := otel.Tracer("github.com/zhangzhe-ctrl/ani-session-gateway/session").Start(ctx, "session_manager.claim")
 	defer span.End()
@@ -176,6 +224,7 @@ func (m *Manager) Claim(ctx context.Context, sessionID, ticket string) (ClaimedA
 		},
 		Target: Target{
 			InstanceBinding: lease.Session.InstanceBinding,
+			VMBinding:       lease.Session.VMBinding,
 			WorkloadName:    lease.Session.WorkloadName,
 			WorkloadKind:    lease.Session.WorkloadKind,
 		},
@@ -246,6 +295,11 @@ func randomID(source io.Reader) (string, error) {
 }
 
 func validateRequest(r Request) error {
+	if b := r.VMBinding; b.Enabled {
+		if r.InstanceBinding.Enabled || r.WorkloadKind != WorkloadVM || r.Mode != ModeVNC || b.TenantID != r.TenantID || b.VMID != r.InstanceID || b.VMName != r.WorkloadName || !ValidVMBinding(b) {
+			return ErrInvalidRequest
+		}
+	}
 	if b := r.InstanceBinding; b.Enabled && (b.Version < 1 || b.ClusterID == "" || b.Namespace == "" || b.NotebookName == "" || b.NotebookUID == "" || b.PodName == "" || b.PodUID == "" || b.ContainerName != r.Container || b.Shell == "" || r.Mode != ModeExec) {
 		return ErrInvalidRequest
 	}
@@ -297,7 +351,17 @@ func Fingerprint(r Request) [32]byte {
 			write(v)
 		}
 	}
+	if b := r.VMBinding; b.Enabled {
+		write("vm.console.v1")
+		for _, v := range []string{b.TenantID, b.VMID, fmt.Sprint(b.Version), b.ClusterID, b.Namespace, b.VMName, b.VMUID, b.VMIName, b.VMIUID, b.NamespaceUID} {
+			write(v)
+		}
+	}
 	var result [32]byte
 	copy(result[:], h.Sum(nil))
 	return result
+}
+
+func ValidVMBinding(b VMBinding) bool {
+	return b.Enabled && b.TenantID != "" && b.VMID != "" && b.Version > 0 && b.ClusterID != "" && b.Namespace != "" && b.VMName != "" && b.VMUID != "" && b.VMIName != "" && b.VMIUID != "" && b.NamespaceUID != ""
 }

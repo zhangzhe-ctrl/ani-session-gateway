@@ -18,6 +18,7 @@ var (
 
 type Store interface {
 	CreateOrGet(context.Context, string, Session) (Session, bool, error)
+	GetByKey(context.Context, string) (Session, error)
 	ClaimAndReserve(context.Context, string, [32]byte, time.Time, ClaimLimits) (SessionLease, error)
 	CloseAndRelease(context.Context, string, string, string, time.Time) error
 	Ready(context.Context) error

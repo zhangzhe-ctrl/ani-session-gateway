@@ -8,7 +8,8 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/zhangzhe-ctrl/ani-resource-service/api/instance/terminal v0.0.0-20261013075021-0937f5aa9c6c
-	github.com/zhangzhe-ctrl/ani-session-gateway/api v0.0.0
+	github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console v0.0.0-20261023185414-0a53b99c8d9f
+	github.com/zhangzhe-ctrl/ani-session-gateway/api v0.1.1-0.20261024051540-811cc3839244
 	go.opentelemetry.io/otel v1.46.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.46.0
 	go.opentelemetry.io/otel/sdk v1.46.0
@@ -99,7 +100,4 @@ require (
 	k8s.io/client-go v0.34.3
 )
 
-replace (
-	github.com/zhangzhe-ctrl/ani-session-gateway/api => ./api
-	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b
-)
+replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b

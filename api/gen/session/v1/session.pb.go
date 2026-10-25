@@ -7,6 +7,7 @@
 package sessionv1
 
 import (
+	v1 "github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -123,7 +124,143 @@ func (x VMConsoleOptions_Protocol) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use VMConsoleOptions_Protocol.Descriptor instead.
 func (VMConsoleOptions_Protocol) EnumDescriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{5, 0}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{7, 0}
+}
+
+type GetSessionReplayRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	IdempotencyKey  string                 `protobuf:"bytes,1,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Principal       *Principal             `protobuf:"bytes,2,opt,name=principal,proto3" json:"principal,omitempty"`
+	InstanceId      string                 `protobuf:"bytes,3,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	ExpectedVersion int64                  `protobuf:"varint,4,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetSessionReplayRequest) Reset() {
+	*x = GetSessionReplayRequest{}
+	mi := &file_session_v1_session_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSessionReplayRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSessionReplayRequest) ProtoMessage() {}
+
+func (x *GetSessionReplayRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_session_v1_session_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSessionReplayRequest.ProtoReflect.Descriptor instead.
+func (*GetSessionReplayRequest) Descriptor() ([]byte, []int) {
+	return file_session_v1_session_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetSessionReplayRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *GetSessionReplayRequest) GetPrincipal() *Principal {
+	if x != nil {
+		return x.Principal
+	}
+	return nil
+}
+
+func (x *GetSessionReplayRequest) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+func (x *GetSessionReplayRequest) GetExpectedVersion() int64 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+type GetSessionReplayResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	ConnectUrl    string                 `protobuf:"bytes,2,opt,name=connect_url,json=connectUrl,proto3" json:"connect_url,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Replayed      bool                   `protobuf:"varint,4,opt,name=replayed,proto3" json:"replayed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSessionReplayResponse) Reset() {
+	*x = GetSessionReplayResponse{}
+	mi := &file_session_v1_session_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSessionReplayResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSessionReplayResponse) ProtoMessage() {}
+
+func (x *GetSessionReplayResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_session_v1_session_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSessionReplayResponse.ProtoReflect.Descriptor instead.
+func (*GetSessionReplayResponse) Descriptor() ([]byte, []int) {
+	return file_session_v1_session_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetSessionReplayResponse) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GetSessionReplayResponse) GetConnectUrl() string {
+	if x != nil {
+		return x.ConnectUrl
+	}
+	return ""
+}
+
+func (x *GetSessionReplayResponse) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *GetSessionReplayResponse) GetReplayed() bool {
+	if x != nil {
+		return x.Replayed
+	}
+	return false
 }
 
 type CreateSessionRequest struct {
@@ -143,7 +280,7 @@ type CreateSessionRequest struct {
 
 func (x *CreateSessionRequest) Reset() {
 	*x = CreateSessionRequest{}
-	mi := &file_session_v1_session_proto_msgTypes[0]
+	mi := &file_session_v1_session_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -155,7 +292,7 @@ func (x *CreateSessionRequest) String() string {
 func (*CreateSessionRequest) ProtoMessage() {}
 
 func (x *CreateSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[0]
+	mi := &file_session_v1_session_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -168,7 +305,7 @@ func (x *CreateSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionRequest.ProtoReflect.Descriptor instead.
 func (*CreateSessionRequest) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{0}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateSessionRequest) GetRequestId() string {
@@ -250,7 +387,7 @@ type Principal struct {
 
 func (x *Principal) Reset() {
 	*x = Principal{}
-	mi := &file_session_v1_session_proto_msgTypes[1]
+	mi := &file_session_v1_session_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -262,7 +399,7 @@ func (x *Principal) String() string {
 func (*Principal) ProtoMessage() {}
 
 func (x *Principal) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[1]
+	mi := &file_session_v1_session_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -275,7 +412,7 @@ func (x *Principal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Principal.ProtoReflect.Descriptor instead.
 func (*Principal) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{1}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Principal) GetTenantId() string {
@@ -298,14 +435,15 @@ type Target struct {
 	WorkloadName string                 `protobuf:"bytes,2,opt,name=workload_name,json=workloadName,proto3" json:"workload_name,omitempty"`
 	WorkloadKind WorkloadKind           `protobuf:"varint,3,opt,name=workload_kind,json=workloadKind,proto3,enum=ani.session.v1.WorkloadKind" json:"workload_kind,omitempty"`
 	// Resource-owned binding, accepted only from the authenticated Governance peer.
-	InstanceBinding *InstanceBinding `protobuf:"bytes,4,opt,name=instance_binding,json=instanceBinding,proto3" json:"instance_binding,omitempty"`
+	InstanceBinding *InstanceBinding     `protobuf:"bytes,4,opt,name=instance_binding,json=instanceBinding,proto3" json:"instance_binding,omitempty"`
+	VmBinding       *v1.VMConsoleBinding `protobuf:"bytes,5,opt,name=vm_binding,json=vmBinding,proto3" json:"vm_binding,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Target) Reset() {
 	*x = Target{}
-	mi := &file_session_v1_session_proto_msgTypes[2]
+	mi := &file_session_v1_session_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -317,7 +455,7 @@ func (x *Target) String() string {
 func (*Target) ProtoMessage() {}
 
 func (x *Target) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[2]
+	mi := &file_session_v1_session_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -330,7 +468,7 @@ func (x *Target) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Target.ProtoReflect.Descriptor instead.
 func (*Target) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{2}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Target) GetInstanceId() string {
@@ -361,6 +499,13 @@ func (x *Target) GetInstanceBinding() *InstanceBinding {
 	return nil
 }
 
+func (x *Target) GetVmBinding() *v1.VMConsoleBinding {
+	if x != nil {
+		return x.VmBinding
+	}
+	return nil
+}
+
 type InstanceBinding struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Version       int64                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -378,7 +523,7 @@ type InstanceBinding struct {
 
 func (x *InstanceBinding) Reset() {
 	*x = InstanceBinding{}
-	mi := &file_session_v1_session_proto_msgTypes[3]
+	mi := &file_session_v1_session_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -390,7 +535,7 @@ func (x *InstanceBinding) String() string {
 func (*InstanceBinding) ProtoMessage() {}
 
 func (x *InstanceBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[3]
+	mi := &file_session_v1_session_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -403,7 +548,7 @@ func (x *InstanceBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstanceBinding.ProtoReflect.Descriptor instead.
 func (*InstanceBinding) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{3}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *InstanceBinding) GetVersion() int64 {
@@ -482,7 +627,7 @@ type ExecOptions struct {
 
 func (x *ExecOptions) Reset() {
 	*x = ExecOptions{}
-	mi := &file_session_v1_session_proto_msgTypes[4]
+	mi := &file_session_v1_session_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -494,7 +639,7 @@ func (x *ExecOptions) String() string {
 func (*ExecOptions) ProtoMessage() {}
 
 func (x *ExecOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[4]
+	mi := &file_session_v1_session_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -507,7 +652,7 @@ func (x *ExecOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecOptions.ProtoReflect.Descriptor instead.
 func (*ExecOptions) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{4}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ExecOptions) GetContainer() string {
@@ -555,7 +700,7 @@ type VMConsoleOptions struct {
 
 func (x *VMConsoleOptions) Reset() {
 	*x = VMConsoleOptions{}
-	mi := &file_session_v1_session_proto_msgTypes[5]
+	mi := &file_session_v1_session_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -567,7 +712,7 @@ func (x *VMConsoleOptions) String() string {
 func (*VMConsoleOptions) ProtoMessage() {}
 
 func (x *VMConsoleOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[5]
+	mi := &file_session_v1_session_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -580,7 +725,7 @@ func (x *VMConsoleOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMConsoleOptions.ProtoReflect.Descriptor instead.
 func (*VMConsoleOptions) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{5}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *VMConsoleOptions) GetProtocol() VMConsoleOptions_Protocol {
@@ -609,7 +754,7 @@ type CreateSessionResponse struct {
 
 func (x *CreateSessionResponse) Reset() {
 	*x = CreateSessionResponse{}
-	mi := &file_session_v1_session_proto_msgTypes[6]
+	mi := &file_session_v1_session_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -621,7 +766,7 @@ func (x *CreateSessionResponse) String() string {
 func (*CreateSessionResponse) ProtoMessage() {}
 
 func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_session_v1_session_proto_msgTypes[6]
+	mi := &file_session_v1_session_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -634,7 +779,7 @@ func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionResponse.ProtoReflect.Descriptor instead.
 func (*CreateSessionResponse) Descriptor() ([]byte, []int) {
-	return file_session_v1_session_proto_rawDescGZIP(), []int{6}
+	return file_session_v1_session_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateSessionResponse) GetSessionId() string {
@@ -669,7 +814,21 @@ var File_session_v1_session_proto protoreflect.FileDescriptor
 
 const file_session_v1_session_proto_rawDesc = "" +
 	"\n" +
-	"\x18session/v1/session.proto\x12\x0eani.session.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x02\n" +
+	"\x18session/v1/session.proto\x12\x0eani.session.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bvm/console/v1/console.proto\"\xc7\x01\n" +
+	"\x17GetSessionReplayRequest\x12'\n" +
+	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x127\n" +
+	"\tprincipal\x18\x02 \x01(\v2\x19.ani.session.v1.PrincipalR\tprincipal\x12\x1f\n" +
+	"\vinstance_id\x18\x03 \x01(\tR\n" +
+	"instanceId\x12)\n" +
+	"\x10expected_version\x18\x04 \x01(\x03R\x0fexpectedVersion\"\xb1\x01\n" +
+	"\x18GetSessionReplayResponse\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1f\n" +
+	"\vconnect_url\x18\x02 \x01(\tR\n" +
+	"connectUrl\x129\n" +
+	"\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1a\n" +
+	"\breplayed\x18\x04 \x01(\bR\breplayed\"\xc5\x02\n" +
 	"\x14CreateSessionRequest\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12'\n" +
@@ -683,13 +842,15 @@ const file_session_v1_session_proto_rawDesc = "" +
 	"\tPrincipal\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
-	"subject_id\x18\x02 \x01(\tR\tsubjectId\"\xdd\x01\n" +
+	"subject_id\x18\x02 \x01(\tR\tsubjectId\"\x9d\x02\n" +
 	"\x06Target\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\tR\n" +
 	"instanceId\x12#\n" +
 	"\rworkload_name\x18\x02 \x01(\tR\fworkloadName\x12A\n" +
 	"\rworkload_kind\x18\x03 \x01(\x0e2\x1c.ani.session.v1.WorkloadKindR\fworkloadKind\x12J\n" +
-	"\x10instance_binding\x18\x04 \x01(\v2\x1f.ani.session.v1.InstanceBindingR\x0finstanceBinding\"\xa1\x02\n" +
+	"\x10instance_binding\x18\x04 \x01(\v2\x1f.ani.session.v1.InstanceBindingR\x0finstanceBinding\x12>\n" +
+	"\n" +
+	"vm_binding\x18\x05 \x01(\v2\x1f.vm.console.v1.VMConsoleBindingR\tvmBinding\"\xa1\x02\n" +
 	"\x0fInstanceBinding\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x03R\aversion\x12\x1d\n" +
 	"\n" +
@@ -727,9 +888,10 @@ const file_session_v1_session_proto_rawDesc = "" +
 	"\x17WORKLOAD_KIND_CONTAINER\x10\x01\x12\x1f\n" +
 	"\x1bWORKLOAD_KIND_GPU_CONTAINER\x10\x02\x12\x19\n" +
 	"\x15WORKLOAD_KIND_SANDBOX\x10\x03\x12\x14\n" +
-	"\x10WORKLOAD_KIND_VM\x10\x042n\n" +
+	"\x10WORKLOAD_KIND_VM\x10\x042\xd5\x01\n" +
 	"\x0eSessionService\x12\\\n" +
-	"\rCreateSession\x12$.ani.session.v1.CreateSessionRequest\x1a%.ani.session.v1.CreateSessionResponseBKZIgithub.com/zhangzhe-ctrl/ani-session-gateway/api/gen/session/v1;sessionv1b\x06proto3"
+	"\rCreateSession\x12$.ani.session.v1.CreateSessionRequest\x1a%.ani.session.v1.CreateSessionResponse\x12e\n" +
+	"\x10GetSessionReplay\x12'.ani.session.v1.GetSessionReplayRequest\x1a(.ani.session.v1.GetSessionReplayResponseBKZIgithub.com/zhangzhe-ctrl/ani-session-gateway/api/gen/session/v1;sessionv1b\x06proto3"
 
 var (
 	file_session_v1_session_proto_rawDescOnce sync.Once
@@ -744,35 +906,43 @@ func file_session_v1_session_proto_rawDescGZIP() []byte {
 }
 
 var file_session_v1_session_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_session_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_session_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_session_v1_session_proto_goTypes = []any{
-	(WorkloadKind)(0),              // 0: ani.session.v1.WorkloadKind
-	(VMConsoleOptions_Protocol)(0), // 1: ani.session.v1.VMConsoleOptions.Protocol
-	(*CreateSessionRequest)(nil),   // 2: ani.session.v1.CreateSessionRequest
-	(*Principal)(nil),              // 3: ani.session.v1.Principal
-	(*Target)(nil),                 // 4: ani.session.v1.Target
-	(*InstanceBinding)(nil),        // 5: ani.session.v1.InstanceBinding
-	(*ExecOptions)(nil),            // 6: ani.session.v1.ExecOptions
-	(*VMConsoleOptions)(nil),       // 7: ani.session.v1.VMConsoleOptions
-	(*CreateSessionResponse)(nil),  // 8: ani.session.v1.CreateSessionResponse
-	(*timestamppb.Timestamp)(nil),  // 9: google.protobuf.Timestamp
+	(WorkloadKind)(0),                // 0: ani.session.v1.WorkloadKind
+	(VMConsoleOptions_Protocol)(0),   // 1: ani.session.v1.VMConsoleOptions.Protocol
+	(*GetSessionReplayRequest)(nil),  // 2: ani.session.v1.GetSessionReplayRequest
+	(*GetSessionReplayResponse)(nil), // 3: ani.session.v1.GetSessionReplayResponse
+	(*CreateSessionRequest)(nil),     // 4: ani.session.v1.CreateSessionRequest
+	(*Principal)(nil),                // 5: ani.session.v1.Principal
+	(*Target)(nil),                   // 6: ani.session.v1.Target
+	(*InstanceBinding)(nil),          // 7: ani.session.v1.InstanceBinding
+	(*ExecOptions)(nil),              // 8: ani.session.v1.ExecOptions
+	(*VMConsoleOptions)(nil),         // 9: ani.session.v1.VMConsoleOptions
+	(*CreateSessionResponse)(nil),    // 10: ani.session.v1.CreateSessionResponse
+	(*timestamppb.Timestamp)(nil),    // 11: google.protobuf.Timestamp
+	(*v1.VMConsoleBinding)(nil),      // 12: vm.console.v1.VMConsoleBinding
 }
 var file_session_v1_session_proto_depIdxs = []int32{
-	3, // 0: ani.session.v1.CreateSessionRequest.principal:type_name -> ani.session.v1.Principal
-	4, // 1: ani.session.v1.CreateSessionRequest.target:type_name -> ani.session.v1.Target
-	6, // 2: ani.session.v1.CreateSessionRequest.exec:type_name -> ani.session.v1.ExecOptions
-	7, // 3: ani.session.v1.CreateSessionRequest.vm_console:type_name -> ani.session.v1.VMConsoleOptions
-	0, // 4: ani.session.v1.Target.workload_kind:type_name -> ani.session.v1.WorkloadKind
-	5, // 5: ani.session.v1.Target.instance_binding:type_name -> ani.session.v1.InstanceBinding
-	1, // 6: ani.session.v1.VMConsoleOptions.protocol:type_name -> ani.session.v1.VMConsoleOptions.Protocol
-	9, // 7: ani.session.v1.CreateSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
-	2, // 8: ani.session.v1.SessionService.CreateSession:input_type -> ani.session.v1.CreateSessionRequest
-	8, // 9: ani.session.v1.SessionService.CreateSession:output_type -> ani.session.v1.CreateSessionResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	5,  // 0: ani.session.v1.GetSessionReplayRequest.principal:type_name -> ani.session.v1.Principal
+	11, // 1: ani.session.v1.GetSessionReplayResponse.expires_at:type_name -> google.protobuf.Timestamp
+	5,  // 2: ani.session.v1.CreateSessionRequest.principal:type_name -> ani.session.v1.Principal
+	6,  // 3: ani.session.v1.CreateSessionRequest.target:type_name -> ani.session.v1.Target
+	8,  // 4: ani.session.v1.CreateSessionRequest.exec:type_name -> ani.session.v1.ExecOptions
+	9,  // 5: ani.session.v1.CreateSessionRequest.vm_console:type_name -> ani.session.v1.VMConsoleOptions
+	0,  // 6: ani.session.v1.Target.workload_kind:type_name -> ani.session.v1.WorkloadKind
+	7,  // 7: ani.session.v1.Target.instance_binding:type_name -> ani.session.v1.InstanceBinding
+	12, // 8: ani.session.v1.Target.vm_binding:type_name -> vm.console.v1.VMConsoleBinding
+	1,  // 9: ani.session.v1.VMConsoleOptions.protocol:type_name -> ani.session.v1.VMConsoleOptions.Protocol
+	11, // 10: ani.session.v1.CreateSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 11: ani.session.v1.SessionService.CreateSession:input_type -> ani.session.v1.CreateSessionRequest
+	2,  // 12: ani.session.v1.SessionService.GetSessionReplay:input_type -> ani.session.v1.GetSessionReplayRequest
+	10, // 13: ani.session.v1.SessionService.CreateSession:output_type -> ani.session.v1.CreateSessionResponse
+	3,  // 14: ani.session.v1.SessionService.GetSessionReplay:output_type -> ani.session.v1.GetSessionReplayResponse
+	13, // [13:15] is the sub-list for method output_type
+	11, // [11:13] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_session_v1_session_proto_init() }
@@ -780,7 +950,7 @@ func file_session_v1_session_proto_init() {
 	if File_session_v1_session_proto != nil {
 		return
 	}
-	file_session_v1_session_proto_msgTypes[0].OneofWrappers = []any{
+	file_session_v1_session_proto_msgTypes[2].OneofWrappers = []any{
 		(*CreateSessionRequest_Exec)(nil),
 		(*CreateSessionRequest_VmConsole)(nil),
 	}
@@ -790,7 +960,7 @@ func file_session_v1_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_session_v1_session_proto_rawDesc), len(file_session_v1_session_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

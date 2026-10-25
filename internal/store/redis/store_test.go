@@ -27,11 +27,19 @@ func TestContractAgainstProtocolCompatibleLocalRedis(t *testing.T) {
 
 func TestContractAgainstRealRedis(t *testing.T) {
 	address := os.Getenv("REDIS_TEST_ADDR")
-	if address == "" {
-		t.Skip("not_verified: REDIS_TEST_ADDR is not configured")
+	options := &redis.Options{Addr: address, DB: 15}
+	if rawURL := os.Getenv("REDIS_TEST_URL"); rawURL != "" {
+		var err error
+		options, err = redis.ParseURL(rawURL)
+		if err != nil {
+			t.Fatal("invalid REDIS_TEST_URL")
+		}
+		options.DB = 15
+	} else if address == "" {
+		t.Skip("not_verified: REDIS_TEST_URL or REDIS_TEST_ADDR is not configured")
 	}
 	storetest.Run(t, func(t *testing.T) session.Store {
-		client := redis.NewClient(&redis.Options{Addr: address, DB: 15})
+		client := redis.NewClient(options)
 		if err := client.FlushDB(t.Context()).Err(); err != nil {
 			t.Fatalf("prepare real Redis: %v", err)
 		}

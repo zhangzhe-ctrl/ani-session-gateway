@@ -100,6 +100,7 @@ func boundedOutcome(outcome connectedsession.Outcome) string {
 		connectedsession.OutcomeInvalidVNCFrame,
 		connectedsession.OutcomeBackpressure,
 		connectedsession.OutcomeRuntimeUnavailable,
+		connectedsession.OutcomeTargetChanged,
 		connectedsession.OutcomeRuntimeFailed,
 		connectedsession.OutcomeTransportFailed,
 		connectedsession.OutcomeShutdown,

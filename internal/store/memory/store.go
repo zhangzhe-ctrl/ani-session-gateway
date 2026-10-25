@@ -22,6 +22,20 @@ func New() *Store {
 func (*Store) Ready(context.Context) error { return nil }
 func (*Store) Mode() string                { return "memory" }
 
+func (s *Store) GetByKey(_ context.Context, key string) (session.Session, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id, ok := s.byKey[key]
+	if !ok {
+		return session.Session{}, session.ErrNotFound
+	}
+	stored, ok := s.sessions[id]
+	if !ok {
+		return session.Session{}, session.ErrNotFound
+	}
+	return clone(stored), nil
+}
+
 func (s *Store) CreateOrGet(_ context.Context, key string, candidate session.Session) (session.Session, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

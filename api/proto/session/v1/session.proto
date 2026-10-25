@@ -3,11 +3,28 @@ syntax = "proto3";
 package ani.session.v1;
 
 import "google/protobuf/timestamp.proto";
+import "vm/console/v1/console.proto";
 
 option go_package = "github.com/zhangzhe-ctrl/ani-session-gateway/api/gen/session/v1;sessionv1";
 
 service SessionService {
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  // Returns an existing VM console intent without signing a new ticket.
+  rpc GetSessionReplay(GetSessionReplayRequest) returns (GetSessionReplayResponse);
+}
+
+message GetSessionReplayRequest {
+  string idempotency_key = 1;
+  Principal principal = 2;
+  string instance_id = 3;
+  int64 expected_version = 4;
+}
+
+message GetSessionReplayResponse {
+  string session_id = 1;
+  string connect_url = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  bool replayed = 4;
 }
 
 message CreateSessionRequest {
@@ -32,6 +49,7 @@ message Target {
   WorkloadKind workload_kind = 3;
   // Resource-owned binding, accepted only from the authenticated Governance peer.
   InstanceBinding instance_binding = 4;
+  vm.console.v1.VMConsoleBinding vm_binding = 5;
 }
 message InstanceBinding {
  int64 version = 1; string cluster_id = 2; string namespace = 3;
