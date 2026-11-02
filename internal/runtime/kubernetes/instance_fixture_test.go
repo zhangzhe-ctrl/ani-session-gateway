@@ -97,7 +97,7 @@ func TestInstanceSessionFixture(t *testing.T) {
 	t.Setenv("RESOURCE_INSTANCE_CA_FILE", cfg.CAFile)
 	t.Setenv("RESOURCE_INSTANCE_CERT_FILE", cfg.SGClientCertFile)
 	t.Setenv("RESOURCE_INSTANCE_KEY_FILE", cfg.SGClientKeyFile)
-	validator, closeValidator, e := resourceruntime.NewFromEnv()
+	validator, closeValidator, e := resourceruntime.NewFromEnv(30 * time.Second)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -133,7 +133,7 @@ func TestInstanceSessionFixture(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	adapter := NewExecAdapter(config, client)
+	adapter := NewExecAdapter(config, client, 30*time.Second)
 	adapter.ConfigureInstanceValidator(validator, cfg.ClusterID)
 	adapter.newExecutor = func(_ *rest.Config, _ string, u *url.URL) (remotecommand.Executor, error) {
 		command := append([]string(nil), u.Query()["command"]...)

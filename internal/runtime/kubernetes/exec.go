@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	runtimeport "github.com/zhangzhe-ctrl/ani-session-gateway/internal/runtime"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
@@ -28,6 +29,7 @@ type ExecAdapter struct {
 	config            *rest.Config
 	restClient        rest.Interface
 	newExecutor       executorFactory
+	requestTimeout    time.Duration
 }
 
 func (a *ExecAdapter) ConfigureInstanceValidator(v session.InstanceValidator, cluster string) {
@@ -35,22 +37,27 @@ func (a *ExecAdapter) ConfigureInstanceValidator(v session.InstanceValidator, cl
 	a.instanceClusterID = cluster
 }
 
-func NewExecAdapter(config *rest.Config, client typedcorev1.CoreV1Interface) *ExecAdapter {
-	return &ExecAdapter{resolver: NewPodResolver(client), config: rest.CopyConfig(config), restClient: client.RESTClient(), newExecutor: remotecommand.NewSPDYExecutor}
+func NewExecAdapter(config *rest.Config, client typedcorev1.CoreV1Interface, requestTimeout time.Duration) *ExecAdapter {
+	return &ExecAdapter{resolver: NewPodResolver(client), config: rest.CopyConfig(config), restClient: client.RESTClient(), newExecutor: remotecommand.NewSPDYExecutor, requestTimeout: requestTimeout}
 }
 
 func (a *ExecAdapter) OpenExec(ctx context.Context, target runtimeport.ExecTarget, size session.TerminalSize) (runtimeport.ExecStream, error) {
 	ctx, span := otel.Tracer("github.com/zhangzhe-ctrl/ani-session-gateway/runtime/kubernetes").Start(ctx, "runtime.kubernetes.open_exec")
 	defer span.End()
+	if a.requestTimeout <= 0 {
+		return nil, runtimeport.ErrUnavailable
+	}
+	preflightCtx, cancelPreflight := context.WithTimeout(ctx, a.requestTimeout)
+	defer cancelPreflight()
 	if target.InstanceBinding.Enabled {
 		if a.instanceValidator == nil || a.instanceClusterID == "" || a.instanceClusterID != target.InstanceBinding.ClusterID {
 			return nil, runtimeport.ErrInvalidTarget
 		}
-		if e := a.instanceValidator.Validate(ctx, target.TenantID, target.InstanceID, target.InstanceBinding); e != nil {
+		if e := a.instanceValidator.Validate(preflightCtx, target.TenantID, target.InstanceID, target.InstanceBinding); e != nil {
 			return nil, runtimeport.ErrTargetNotReady
 		}
 	}
-	resolved, err := a.resolver.Resolve(ctx, target)
+	resolved, err := a.resolver.Resolve(preflightCtx, target)
 	if err != nil {
 		return nil, err
 	}

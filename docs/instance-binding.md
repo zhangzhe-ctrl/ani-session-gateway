@@ -12,6 +12,7 @@ Gov 的可信目标增加 `Target.instance_binding`，包含保存的逻辑 clus
 | `RESOURCE_INSTANCE_SERVER_NAME` | 该服务证书的精确 DNS SAN |
 | `RESOURCE_INSTANCE_CA_FILE/CERT_FILE/KEY_FILE` | 受管信任链与 SG 客户端身份，唯一 URI `spiffe://ani.internal/service/ani-session-gateway` |
 | `RESOURCE_INSTANCE_CLUSTER_ID` | 实际 exec 所连集群对应的逻辑 cluster UUID，必须等于冻结目标 |
+| `RUNTIME_REQUEST_TIMEOUT` | 正时长，默认 `30s`；VM 和容器的 Resource 校验、Pod/VMI 连接前读取、KubeVirt 建连与连接后复核的预算 |
 | `INSTANCE_CONTROL_CA_FILE/CERT_FILE/KEY_FILE` | 控制口受管 TLS 1.3 配置，启用实例时无明文回退 |
 
 只有经过 mTLS 验证且唯一 URI 为 `spiffe://ani.internal/service/ani-governance` 的直接客户端才能签发受管实例票据；普通可信 CA、请求 header 或自报 tenant 均不能替代该身份。Resource 的窄 API 模块 `github.com/zhangzhe-ctrl/ani-resource-service/api/instance/terminal` 只含 protobuf/gRPC；SG 不导入 Resource 根模块的 Kubernetes SDK。固定模块版本以 `go.mod` 为准；升级须先发布 provider，再校验来源 SHA 与 sums，并以 `GOWORK=off` 验证消费者。
@@ -19,3 +20,5 @@ Gov 的可信目标增加 `Target.instance_binding`，包含保存的逻辑 clus
 签发和建连均调用 `InstanceTerminalService/ValidateTerminalTarget`。停止/删除意图、新版本、Notebook/Pod UID 或容器不匹配时拒绝；Redis 失败不降级为内存权限。PodResolver 只使用保存 Namespace 与精确 Pod UID，不自动转接同名替换 Pod。exec 再以容器内 downward API 的 `ANI_INSTANCE_POD_UID` 校验实际 UID，覆盖查询后发生替换的窗口。
 
 票据密钥、Redis、Origin/WS 与 Kubernetes 身份继续沿用现有受管配置。重启使用相同票据密钥和持久 store；恢复控制端不清除冻结 binding 或改写旧票据。此接入只约束新连接，长连接会话生命周期仍由已有 SG 机制承担。前端由专人接手，使用 Governance 的实例 exec API 返回的短期 `ws_url`，不要将内部 URI/mTLS 或运行位置交给页面。
+
+`RUNTIME_REQUEST_TIMEOUT` 从 `ani-session-gateway` ConfigMap 经 envFrom 加载，修改后需滚动重启 Deployment。它只限制校验与连接阶段，不能取消调用方更短的 deadline，也不会在连接成功后按这个时长截断会话。`WS_HANDSHAKE_TIMEOUT` 单独控制 WebSocket/HTTP 握手与流写入，部署示例为 `30s`；空闲与最长会话分别由 `WS_IDLE_TIMEOUT`、`SESSION_MAX_DURATION` 控制。

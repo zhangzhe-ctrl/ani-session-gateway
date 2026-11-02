@@ -122,7 +122,7 @@ func TestExecAdapterResolvesPodAndBuildsRemoteCommandRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	adapter := NewExecAdapter(config, client)
+	adapter := NewExecAdapter(config, client, 30*time.Second)
 	var captured *url.URL
 	adapter.newExecutor = func(_ *rest.Config, method string, requestURL *url.URL) (remotecommand.Executor, error) {
 		if method != http.MethodPost {
@@ -151,6 +151,38 @@ func TestExecAdapterResolvesPodAndBuildsRemoteCommandRequest(t *testing.T) {
 	}
 	if captured == nil || captured.Path != "/api/v1/namespaces/ani-tenant-tenant-a/pods/pod-a/exec" || captured.Query().Get("container") != "app" || captured.Query().Get("command") != "/bin/sh" || captured.Query().Get("tty") != "true" {
 		t.Fatalf("exec URL=%v", captured)
+	}
+}
+
+func TestExecPreflightTimeoutDoesNotBecomeStreamLifetime(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(&corev1.PodList{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "PodList"}, Items: []corev1.Pod{*pod("ani-tenant-tenant-a", "pod-a", "tenant-a", "workload-a", time.Now(), true, "app")}})
+	}))
+	defer apiServer.Close()
+	config := &rest.Config{Host: apiServer.URL}
+	client, err := typedcorev1.NewForConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapter := NewExecAdapter(config, client, 100*time.Millisecond)
+	adapter.newExecutor = func(*rest.Config, string, *url.URL) (remotecommand.Executor, error) {
+		return executorFunc(func(ctx context.Context, _ remotecommand.StreamOptions) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(200 * time.Millisecond):
+				return nil
+			}
+		}), nil
+	}
+	stream, err := adapter.OpenExec(t.Context(), runtimeport.ExecTarget{TenantID: "tenant-a", WorkloadName: "workload-a", WorkloadKind: session.WorkloadContainer}, session.TerminalSize{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if _, err := stream.Wait(); err != nil {
+		t.Fatalf("connection budget cancelled the established stream: %v", err)
 	}
 }
 
