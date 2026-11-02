@@ -163,13 +163,15 @@ func (a *Adapter) OpenVNC(ctx context.Context, target runtimeport.VMTarget) (run
 }
 
 func (a *Adapter) open(ctx context.Context, target runtimeport.VMTarget, connect func(string, string) (providerStream, error)) (runtimeport.ByteStream, error) {
+	preflightCtx, cancelPreflight := context.WithTimeout(ctx, a.connectionTimeout)
+	defer cancelPreflight()
 	namespace, err := kubernetesruntime.NamespaceForTenant(target.TenantID)
 	name := target.WorkloadName
 	if b := target.Binding; b.Enabled {
 		if !session.ValidVMBinding(b) || target.TenantID != b.TenantID || target.InstanceID != b.VMID || target.WorkloadName != b.VMName || a.validator == nil || a.clusterID == "" || a.clusterID != b.ClusterID || len(validation.IsDNS1123Label(b.Namespace)) != 0 || len(validation.IsDNS1123Subdomain(b.VMName)) != 0 || len(validation.IsDNS1123Subdomain(b.VMIName)) != 0 {
 			return nil, runtimeport.ErrInvalidTarget
 		}
-		if err := a.validateManaged(ctx, b); err != nil {
+		if err := a.validateManaged(preflightCtx, b); err != nil {
 			return nil, err
 		}
 		namespace, name, err = b.Namespace, b.VMIName, nil
@@ -177,7 +179,7 @@ func (a *Adapter) open(ctx context.Context, target runtimeport.VMTarget, connect
 	if err != nil || name == "" || len(validation.IsDNS1123Subdomain(name)) != 0 || len(validation.IsDNS1123Label(namespace)) != 0 {
 		return nil, runtimeport.ErrInvalidTarget
 	}
-	state, err := a.provider.Get(ctx, namespace, name)
+	state, err := a.provider.Get(preflightCtx, namespace, name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, runtimeport.ErrTargetNotFound

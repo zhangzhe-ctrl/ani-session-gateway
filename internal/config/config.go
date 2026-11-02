@@ -12,45 +12,47 @@ import (
 )
 
 type Config struct {
-	HTTPAddr             string
-	GRPCAddr             string
-	PublicWSBaseURL      *url.URL
-	AllowedOrigins       map[string]struct{}
-	StoreMode            string
-	RedisURL             string
-	TicketKeyFile        string
-	TicketKey            [32]byte
-	TicketTTL            time.Duration
-	SessionMaxDuration   time.Duration
-	IdempotencyTTL       time.Duration
-	MaxActiveSessions    int
-	MaxActivePerSubject  int
-	WSMaxMessageBytes    int64
-	WSHandshakeTimeout   time.Duration
-	WSIdleTimeout        time.Duration
-	ShutdownGracePeriod  time.Duration
-	OTelServiceName      string
-	OTelExporterEndpoint string
+	HTTPAddr              string
+	GRPCAddr              string
+	PublicWSBaseURL       *url.URL
+	AllowedOrigins        map[string]struct{}
+	StoreMode             string
+	RedisURL              string
+	TicketKeyFile         string
+	TicketKey             [32]byte
+	TicketTTL             time.Duration
+	SessionMaxDuration    time.Duration
+	IdempotencyTTL        time.Duration
+	MaxActiveSessions     int
+	MaxActivePerSubject   int
+	WSMaxMessageBytes     int64
+	WSHandshakeTimeout    time.Duration
+	RuntimeRequestTimeout time.Duration
+	WSIdleTimeout         time.Duration
+	ShutdownGracePeriod   time.Duration
+	OTelServiceName       string
+	OTelExporterEndpoint  string
 }
 
 func Load() (Config, error) {
 	c := Config{
-		HTTPAddr:             env("HTTP_ADDR", ":8080"),
-		GRPCAddr:             env("GRPC_ADDR", ":9090"),
-		StoreMode:            env("STORE_MODE", "redis"),
-		RedisURL:             os.Getenv("REDIS_URL"),
-		TicketKeyFile:        os.Getenv("TICKET_ENCRYPTION_KEY_FILE"),
-		TicketTTL:            60 * time.Second,
-		SessionMaxDuration:   15 * time.Minute,
-		IdempotencyTTL:       15 * time.Minute,
-		MaxActiveSessions:    100,
-		MaxActivePerSubject:  5,
-		WSMaxMessageBytes:    65536,
-		WSHandshakeTimeout:   10 * time.Second,
-		WSIdleTimeout:        10 * time.Minute,
-		ShutdownGracePeriod:  25 * time.Second,
-		OTelServiceName:      env("OTEL_SERVICE_NAME", "ani-session-gateway"),
-		OTelExporterEndpoint: os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+		HTTPAddr:              env("HTTP_ADDR", ":8080"),
+		GRPCAddr:              env("GRPC_ADDR", ":9090"),
+		StoreMode:             env("STORE_MODE", "redis"),
+		RedisURL:              os.Getenv("REDIS_URL"),
+		TicketKeyFile:         os.Getenv("TICKET_ENCRYPTION_KEY_FILE"),
+		TicketTTL:             60 * time.Second,
+		SessionMaxDuration:    15 * time.Minute,
+		IdempotencyTTL:        15 * time.Minute,
+		MaxActiveSessions:     100,
+		MaxActivePerSubject:   5,
+		WSMaxMessageBytes:     65536,
+		WSHandshakeTimeout:    10 * time.Second,
+		RuntimeRequestTimeout: 30 * time.Second,
+		WSIdleTimeout:         10 * time.Minute,
+		ShutdownGracePeriod:   25 * time.Second,
+		OTelServiceName:       env("OTEL_SERVICE_NAME", "ani-session-gateway"),
+		OTelExporterEndpoint:  os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
 	}
 	var err error
 	if c.PublicWSBaseURL, err = parsePublicURL(os.Getenv("PUBLIC_WS_BASE_URL")); err != nil {
@@ -97,7 +99,8 @@ func Load() (Config, error) {
 	for name, dst := range map[string]*time.Duration{
 		"TICKET_TTL": &c.TicketTTL, "SESSION_MAX_DURATION": &c.SessionMaxDuration,
 		"IDEMPOTENCY_TTL": &c.IdempotencyTTL, "WS_HANDSHAKE_TIMEOUT": &c.WSHandshakeTimeout,
-		"WS_IDLE_TIMEOUT": &c.WSIdleTimeout, "SHUTDOWN_GRACE_PERIOD": &c.ShutdownGracePeriod,
+		"RUNTIME_REQUEST_TIMEOUT": &c.RuntimeRequestTimeout,
+		"WS_IDLE_TIMEOUT":         &c.WSIdleTimeout, "SHUTDOWN_GRACE_PERIOD": &c.ShutdownGracePeriod,
 	} {
 		if *dst, err = duration(name, *dst); err != nil {
 			return Config{}, err

@@ -70,7 +70,7 @@ func run() (runErr error) {
 	if selection.Degraded {
 		slog.Warn("store_degraded", "store_mode", selectedStore.Mode(), "local", true)
 	}
-	validator, closeValidator, err := resourceruntime.NewFromEnv()
+	validator, closeValidator, err := resourceruntime.NewFromEnv(cfg.RuntimeRequestTimeout)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func run() (runErr error) {
 	if err != nil {
 		return fmt.Errorf("initialize Kubernetes client: %w", err)
 	}
-	execRuntime := kubernetesruntime.NewExecAdapter(kubernetesConfig, kubernetesClient)
+	execRuntime := kubernetesruntime.NewExecAdapter(kubernetesConfig, kubernetesClient, cfg.RuntimeRequestTimeout)
 	if validator != nil {
 		cluster := os.Getenv("RESOURCE_INSTANCE_CLUSTER_ID")
 		if cluster == "" {
@@ -104,7 +104,7 @@ func run() (runErr error) {
 		}
 		execRuntime.ConfigureInstanceValidator(validator, cluster)
 	}
-	vmRuntime, err := kubevirtruntime.NewAdapter(kubernetesConfig, cfg.WSHandshakeTimeout)
+	vmRuntime, err := kubevirtruntime.NewAdapter(kubernetesConfig, cfg.RuntimeRequestTimeout)
 	if err != nil {
 		return fmt.Errorf("initialize KubeVirt client: %w", err)
 	}

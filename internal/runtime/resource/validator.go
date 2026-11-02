@@ -20,11 +20,15 @@ import (
 )
 
 type Validator struct {
-	client   pb.InstanceTerminalServiceClient
-	vmClient consolev1.VMConsoleServiceClient
+	client         pb.InstanceTerminalServiceClient
+	vmClient       consolev1.VMConsoleServiceClient
+	requestTimeout time.Duration
 }
 
-func NewFromEnv() (*Validator, func(), error) {
+func NewFromEnv(requestTimeout time.Duration) (*Validator, func(), error) {
+	if requestTimeout <= 0 {
+		return nil, nil, fmt.Errorf("Resource request timeout must be positive")
+	}
 	addr := os.Getenv("RESOURCE_INSTANCE_ADDR")
 	if addr == "" {
 		return nil, func() {}, nil
@@ -60,14 +64,14 @@ func NewFromEnv() (*Validator, func(), error) {
 	if e != nil {
 		return nil, nil, e
 	}
-	return &Validator{client: pb.NewInstanceTerminalServiceClient(conn), vmClient: consolev1.NewVMConsoleServiceClient(conn)}, func() { _ = conn.Close() }, nil
+	return &Validator{client: pb.NewInstanceTerminalServiceClient(conn), vmClient: consolev1.NewVMConsoleServiceClient(conn), requestTimeout: requestTimeout}, func() { _ = conn.Close() }, nil
 }
 
 func (v *Validator) ValidateVM(ctx context.Context, b session.VMBinding) error {
-	if v == nil || v.vmClient == nil || !session.ValidVMBinding(b) {
+	if v == nil || v.vmClient == nil || v.requestTimeout <= 0 || !session.ValidVMBinding(b) {
 		return session.ErrUnavailable
 	}
-	ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(ctx, metadata.MD{}), 3*time.Second)
+	ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(ctx, metadata.MD{}), v.requestTimeout)
 	defer cancel()
 	result, err := v.vmClient.ValidateConsoleSession(ctx, &consolev1.VMConsoleBinding{TenantId: b.TenantID, VmId: b.VMID, Version: b.Version, ClusterId: b.ClusterID, Namespace: b.Namespace, VmName: b.VMName, VmUid: b.VMUID, VmiName: b.VMIName, VmiUid: b.VMIUID, NamespaceUid: b.NamespaceUID})
 	if err != nil {
@@ -82,10 +86,10 @@ func (v *Validator) ValidateVM(ctx context.Context, b session.VMBinding) error {
 	return nil
 }
 func (v *Validator) Validate(ctx context.Context, tenant, id string, b session.InstanceBinding) error {
-	if v == nil || v.client == nil || !b.Enabled {
+	if v == nil || v.client == nil || v.requestTimeout <= 0 || !b.Enabled {
 		return session.ErrUnavailable
 	}
-	ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(ctx, metadata.MD{}), 3*time.Second)
+	ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(ctx, metadata.MD{}), v.requestTimeout)
 	defer cancel()
 	result, e := v.client.ValidateTerminalTarget(ctx, &pb.TerminalTarget{TenantId: tenant, InstanceId: id, Version: b.Version, ClusterId: b.ClusterID, Namespace: b.Namespace, NotebookName: b.NotebookName, NotebookUid: b.NotebookUID, PodName: b.PodName, PodUid: b.PodUID, ContainerName: b.ContainerName, Shell: b.Shell})
 	if e != nil {

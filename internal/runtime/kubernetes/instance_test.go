@@ -64,7 +64,7 @@ func TestManagedInstanceExecGuardRejectsPodReplacement(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	adapter := NewExecAdapter(config, client)
+	adapter := NewExecAdapter(config, client, 30*time.Second)
 	authority := &instanceAuthority{}
 	adapter.ConfigureInstanceValidator(authority, "saved-cluster")
 	var command []string

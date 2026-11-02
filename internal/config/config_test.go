@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func validEnv(t *testing.T) {
@@ -16,6 +17,26 @@ func validEnv(t *testing.T) {
 	t.Setenv("ALLOWED_ORIGINS", "http://127.0.0.1:30080")
 	t.Setenv("TICKET_ENCRYPTION_KEY_FILE", keyPath)
 	t.Setenv("STORE_MODE", "memory")
+}
+
+func TestRuntimeRequestTimeoutDefaultOverrideAndInvalidValues(t *testing.T) {
+	validEnv(t)
+	t.Setenv("RUNTIME_REQUEST_TIMEOUT", "")
+	c, err := Load()
+	if err != nil || c.RuntimeRequestTimeout != 30*time.Second {
+		t.Fatalf("default runtime timeout: %v, %v", c.RuntimeRequestTimeout, err)
+	}
+	t.Setenv("RUNTIME_REQUEST_TIMEOUT", "75s")
+	c, err = Load()
+	if err != nil || c.RuntimeRequestTimeout != 75*time.Second {
+		t.Fatalf("configured runtime timeout: %v, %v", c.RuntimeRequestTimeout, err)
+	}
+	for _, value := range []string{"0s", "-1s", "invalid"} {
+		t.Setenv("RUNTIME_REQUEST_TIMEOUT", value)
+		if _, err := Load(); err == nil {
+			t.Fatalf("invalid runtime timeout accepted: %s", value)
+		}
+	}
 }
 
 func TestLoadDefaultsToRedisAndFailsWithoutURL(t *testing.T) {
