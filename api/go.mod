@@ -9,6 +9,7 @@ require (
 )
 
 require (
+	github.com/zhangzhe-ctrl/ani-resource-service/api/sandbox/terminal v0.0.0-20261104041614-a26e1a00c9f4
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect

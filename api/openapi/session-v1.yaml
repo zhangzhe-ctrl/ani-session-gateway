@@ -57,14 +57,31 @@ components:
         subjectId: {type: string}
     Target:
       type: object
-      required: [instanceId, workloadName, workloadKind]
+      required: [workloadName, workloadKind]
+      description: Instance and VM targets use instanceId. Independent Sandbox targets use sandboxBinding and must leave instanceId empty.
       properties:
         instanceId: {type: string}
         workloadName: {type: string}
         vmBinding: {$ref: '#/components/schemas/VMConsoleBinding'}
+        sandboxBinding: {$ref: '#/components/schemas/SandboxTerminalBinding'}
         workloadKind:
           type: string
           enum: [WORKLOAD_KIND_CONTAINER, WORKLOAD_KIND_GPU_CONTAINER, WORKLOAD_KIND_SANDBOX, WORKLOAD_KIND_VM]
+    SandboxTerminalBinding:
+      type: object
+      description: Resource-owned immutable standalone Sandbox identity; requires the exact Governance mTLS caller.
+      required: [tenantId, sandboxId, version, clusterId, namespace, namespaceUid, podName, podUid, containerName, shell]
+      properties:
+        tenantId: {type: string}
+        sandboxId: {type: string}
+        version: {type: integer, format: int64, minimum: 1}
+        clusterId: {type: string}
+        namespace: {type: string}
+        namespaceUid: {type: string}
+        podName: {type: string}
+        podUid: {type: string}
+        containerName: {type: string}
+        shell: {type: string}
     VMConsoleBinding:
       type: object
       description: Resource-owned immutable identity, restricted to VM VNC and the exact Governance mTLS caller.
