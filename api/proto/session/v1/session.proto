@@ -4,6 +4,7 @@ package ani.session.v1;
 
 import "google/protobuf/timestamp.proto";
 import "vm/console/v1/console.proto";
+import "sandbox/terminal/v1/terminal.proto";
 
 option go_package = "github.com/zhangzhe-ctrl/ani-session-gateway/api/gen/session/v1;sessionv1";
 
@@ -50,6 +51,8 @@ message Target {
   // Resource-owned binding, accepted only from the authenticated Governance peer.
   InstanceBinding instance_binding = 4;
   vm.console.v1.VMConsoleBinding vm_binding = 5;
+  // Independent Sandbox target; instance_id must be empty.
+  sandbox.terminal.v1.SandboxTerminalBinding sandbox_binding = 6;
 }
 message InstanceBinding {
  int64 version = 1; string cluster_id = 2; string namespace = 3;

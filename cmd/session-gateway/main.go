@@ -80,11 +80,12 @@ func run() (runErr error) {
 		return err
 	}
 	var instanceAuthority session.InstanceValidator
+	var sandboxAuthority session.SandboxValidator
 	var vmAuthority session.VMValidator
 	if validator != nil {
-		instanceAuthority, vmAuthority = validator, validator
+		instanceAuthority, sandboxAuthority, vmAuthority = validator, validator, validator
 	}
-	manager, err := session.NewManager(selectedStore, session.ManagerConfig{InstanceValidator: instanceAuthority, VMValidator: vmAuthority, PublicWSBaseURL: cfg.PublicWSBaseURL, TicketKey: cfg.TicketKey, TicketTTL: cfg.TicketTTL, SessionMaxDuration: cfg.SessionMaxDuration, IdempotencyTTL: cfg.IdempotencyTTL, MaxActive: cfg.MaxActiveSessions, MaxActivePerSubject: cfg.MaxActivePerSubject, Observer: probes.SessionMetrics()})
+	manager, err := session.NewManager(selectedStore, session.ManagerConfig{InstanceValidator: instanceAuthority, SandboxValidator: sandboxAuthority, VMValidator: vmAuthority, PublicWSBaseURL: cfg.PublicWSBaseURL, TicketKey: cfg.TicketKey, TicketTTL: cfg.TicketTTL, SessionMaxDuration: cfg.SessionMaxDuration, IdempotencyTTL: cfg.IdempotencyTTL, MaxActive: cfg.MaxActiveSessions, MaxActivePerSubject: cfg.MaxActivePerSubject, Observer: probes.SessionMetrics()})
 	if err != nil {
 		return fmt.Errorf("initialize session manager: %w", err)
 	}
@@ -103,6 +104,7 @@ func run() (runErr error) {
 			return fmt.Errorf("managed instance cluster binding required")
 		}
 		execRuntime.ConfigureInstanceValidator(validator, cluster)
+		execRuntime.ConfigureSandboxValidator(validator)
 	}
 	vmRuntime, err := kubevirtruntime.NewAdapter(kubernetesConfig, cfg.RuntimeRequestTimeout)
 	if err != nil {

@@ -7,6 +7,7 @@
 package sessionv1
 
 import (
+	v11 "github.com/zhangzhe-ctrl/ani-resource-service/api/sandbox/terminal/v1"
 	v1 "github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -437,8 +438,10 @@ type Target struct {
 	// Resource-owned binding, accepted only from the authenticated Governance peer.
 	InstanceBinding *InstanceBinding     `protobuf:"bytes,4,opt,name=instance_binding,json=instanceBinding,proto3" json:"instance_binding,omitempty"`
 	VmBinding       *v1.VMConsoleBinding `protobuf:"bytes,5,opt,name=vm_binding,json=vmBinding,proto3" json:"vm_binding,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Independent Sandbox target; instance_id must be empty.
+	SandboxBinding *v11.SandboxTerminalBinding `protobuf:"bytes,6,opt,name=sandbox_binding,json=sandboxBinding,proto3" json:"sandbox_binding,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Target) Reset() {
@@ -502,6 +505,13 @@ func (x *Target) GetInstanceBinding() *InstanceBinding {
 func (x *Target) GetVmBinding() *v1.VMConsoleBinding {
 	if x != nil {
 		return x.VmBinding
+	}
+	return nil
+}
+
+func (x *Target) GetSandboxBinding() *v11.SandboxTerminalBinding {
+	if x != nil {
+		return x.SandboxBinding
 	}
 	return nil
 }
@@ -814,7 +824,7 @@ var File_session_v1_session_proto protoreflect.FileDescriptor
 
 const file_session_v1_session_proto_rawDesc = "" +
 	"\n" +
-	"\x18session/v1/session.proto\x12\x0eani.session.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bvm/console/v1/console.proto\"\xc7\x01\n" +
+	"\x18session/v1/session.proto\x12\x0eani.session.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bvm/console/v1/console.proto\x1a\"sandbox/terminal/v1/terminal.proto\"\xc7\x01\n" +
 	"\x17GetSessionReplayRequest\x12'\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x127\n" +
 	"\tprincipal\x18\x02 \x01(\v2\x19.ani.session.v1.PrincipalR\tprincipal\x12\x1f\n" +
@@ -842,7 +852,7 @@ const file_session_v1_session_proto_rawDesc = "" +
 	"\tPrincipal\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
-	"subject_id\x18\x02 \x01(\tR\tsubjectId\"\x9d\x02\n" +
+	"subject_id\x18\x02 \x01(\tR\tsubjectId\"\xf3\x02\n" +
 	"\x06Target\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\tR\n" +
 	"instanceId\x12#\n" +
@@ -850,7 +860,8 @@ const file_session_v1_session_proto_rawDesc = "" +
 	"\rworkload_kind\x18\x03 \x01(\x0e2\x1c.ani.session.v1.WorkloadKindR\fworkloadKind\x12J\n" +
 	"\x10instance_binding\x18\x04 \x01(\v2\x1f.ani.session.v1.InstanceBindingR\x0finstanceBinding\x12>\n" +
 	"\n" +
-	"vm_binding\x18\x05 \x01(\v2\x1f.vm.console.v1.VMConsoleBindingR\tvmBinding\"\xa1\x02\n" +
+	"vm_binding\x18\x05 \x01(\v2\x1f.vm.console.v1.VMConsoleBindingR\tvmBinding\x12T\n" +
+	"\x0fsandbox_binding\x18\x06 \x01(\v2+.sandbox.terminal.v1.SandboxTerminalBindingR\x0esandboxBinding\"\xa1\x02\n" +
 	"\x0fInstanceBinding\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x03R\aversion\x12\x1d\n" +
 	"\n" +
@@ -908,19 +919,20 @@ func file_session_v1_session_proto_rawDescGZIP() []byte {
 var file_session_v1_session_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_session_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_session_v1_session_proto_goTypes = []any{
-	(WorkloadKind)(0),                // 0: ani.session.v1.WorkloadKind
-	(VMConsoleOptions_Protocol)(0),   // 1: ani.session.v1.VMConsoleOptions.Protocol
-	(*GetSessionReplayRequest)(nil),  // 2: ani.session.v1.GetSessionReplayRequest
-	(*GetSessionReplayResponse)(nil), // 3: ani.session.v1.GetSessionReplayResponse
-	(*CreateSessionRequest)(nil),     // 4: ani.session.v1.CreateSessionRequest
-	(*Principal)(nil),                // 5: ani.session.v1.Principal
-	(*Target)(nil),                   // 6: ani.session.v1.Target
-	(*InstanceBinding)(nil),          // 7: ani.session.v1.InstanceBinding
-	(*ExecOptions)(nil),              // 8: ani.session.v1.ExecOptions
-	(*VMConsoleOptions)(nil),         // 9: ani.session.v1.VMConsoleOptions
-	(*CreateSessionResponse)(nil),    // 10: ani.session.v1.CreateSessionResponse
-	(*timestamppb.Timestamp)(nil),    // 11: google.protobuf.Timestamp
-	(*v1.VMConsoleBinding)(nil),      // 12: vm.console.v1.VMConsoleBinding
+	(WorkloadKind)(0),                  // 0: ani.session.v1.WorkloadKind
+	(VMConsoleOptions_Protocol)(0),     // 1: ani.session.v1.VMConsoleOptions.Protocol
+	(*GetSessionReplayRequest)(nil),    // 2: ani.session.v1.GetSessionReplayRequest
+	(*GetSessionReplayResponse)(nil),   // 3: ani.session.v1.GetSessionReplayResponse
+	(*CreateSessionRequest)(nil),       // 4: ani.session.v1.CreateSessionRequest
+	(*Principal)(nil),                  // 5: ani.session.v1.Principal
+	(*Target)(nil),                     // 6: ani.session.v1.Target
+	(*InstanceBinding)(nil),            // 7: ani.session.v1.InstanceBinding
+	(*ExecOptions)(nil),                // 8: ani.session.v1.ExecOptions
+	(*VMConsoleOptions)(nil),           // 9: ani.session.v1.VMConsoleOptions
+	(*CreateSessionResponse)(nil),      // 10: ani.session.v1.CreateSessionResponse
+	(*timestamppb.Timestamp)(nil),      // 11: google.protobuf.Timestamp
+	(*v1.VMConsoleBinding)(nil),        // 12: vm.console.v1.VMConsoleBinding
+	(*v11.SandboxTerminalBinding)(nil), // 13: sandbox.terminal.v1.SandboxTerminalBinding
 }
 var file_session_v1_session_proto_depIdxs = []int32{
 	5,  // 0: ani.session.v1.GetSessionReplayRequest.principal:type_name -> ani.session.v1.Principal
@@ -932,17 +944,18 @@ var file_session_v1_session_proto_depIdxs = []int32{
 	0,  // 6: ani.session.v1.Target.workload_kind:type_name -> ani.session.v1.WorkloadKind
 	7,  // 7: ani.session.v1.Target.instance_binding:type_name -> ani.session.v1.InstanceBinding
 	12, // 8: ani.session.v1.Target.vm_binding:type_name -> vm.console.v1.VMConsoleBinding
-	1,  // 9: ani.session.v1.VMConsoleOptions.protocol:type_name -> ani.session.v1.VMConsoleOptions.Protocol
-	11, // 10: ani.session.v1.CreateSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
-	4,  // 11: ani.session.v1.SessionService.CreateSession:input_type -> ani.session.v1.CreateSessionRequest
-	2,  // 12: ani.session.v1.SessionService.GetSessionReplay:input_type -> ani.session.v1.GetSessionReplayRequest
-	10, // 13: ani.session.v1.SessionService.CreateSession:output_type -> ani.session.v1.CreateSessionResponse
-	3,  // 14: ani.session.v1.SessionService.GetSessionReplay:output_type -> ani.session.v1.GetSessionReplayResponse
-	13, // [13:15] is the sub-list for method output_type
-	11, // [11:13] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	13, // 9: ani.session.v1.Target.sandbox_binding:type_name -> sandbox.terminal.v1.SandboxTerminalBinding
+	1,  // 10: ani.session.v1.VMConsoleOptions.protocol:type_name -> ani.session.v1.VMConsoleOptions.Protocol
+	11, // 11: ani.session.v1.CreateSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 12: ani.session.v1.SessionService.CreateSession:input_type -> ani.session.v1.CreateSessionRequest
+	2,  // 13: ani.session.v1.SessionService.GetSessionReplay:input_type -> ani.session.v1.GetSessionReplayRequest
+	10, // 14: ani.session.v1.SessionService.CreateSession:output_type -> ani.session.v1.CreateSessionResponse
+	3,  // 15: ani.session.v1.SessionService.GetSessionReplay:output_type -> ani.session.v1.GetSessionReplayResponse
+	14, // [14:16] is the sub-list for method output_type
+	12, // [12:14] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_session_v1_session_proto_init() }

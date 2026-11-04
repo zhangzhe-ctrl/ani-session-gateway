@@ -10,6 +10,7 @@ import (
 	"time"
 
 	pb "github.com/zhangzhe-ctrl/ani-resource-service/api/instance/terminal/v1"
+	sandboxv1 "github.com/zhangzhe-ctrl/ani-resource-service/api/sandbox/terminal/v1"
 	consolev1 "github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console/v1"
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
 	"google.golang.org/grpc"
@@ -22,6 +23,7 @@ import (
 type Validator struct {
 	client         pb.InstanceTerminalServiceClient
 	vmClient       consolev1.VMConsoleServiceClient
+	sandboxClient  sandboxv1.SandboxTerminalServiceClient
 	requestTimeout time.Duration
 }
 
@@ -64,7 +66,26 @@ func NewFromEnv(requestTimeout time.Duration) (*Validator, func(), error) {
 	if e != nil {
 		return nil, nil, e
 	}
-	return &Validator{client: pb.NewInstanceTerminalServiceClient(conn), vmClient: consolev1.NewVMConsoleServiceClient(conn), requestTimeout: requestTimeout}, func() { _ = conn.Close() }, nil
+	return &Validator{client: pb.NewInstanceTerminalServiceClient(conn), vmClient: consolev1.NewVMConsoleServiceClient(conn), sandboxClient: sandboxv1.NewSandboxTerminalServiceClient(conn), requestTimeout: requestTimeout}, func() { _ = conn.Close() }, nil
+}
+
+func (v *Validator) ValidateSandbox(ctx context.Context, b session.SandboxBinding) error {
+	if v == nil || v.sandboxClient == nil || v.requestTimeout <= 0 || !session.ValidSandboxBinding(b) {
+		return session.ErrUnavailable
+	}
+	ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(ctx, metadata.MD{}), v.requestTimeout)
+	defer cancel()
+	result, err := v.sandboxClient.ValidateTerminalSession(ctx, &sandboxv1.SandboxTerminalBinding{TenantId: b.TenantID, SandboxId: b.SandboxID, Version: b.Version, ClusterId: b.ClusterID, Namespace: b.Namespace, NamespaceUid: b.NamespaceUID, PodName: b.PodName, PodUid: b.PodUID, ContainerName: b.ContainerName, Shell: b.Shell})
+	if err != nil {
+		if status.Code(err) == codes.FailedPrecondition || status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+			return session.ErrFailedPrecondition
+		}
+		return session.ErrUnavailable
+	}
+	if result == nil || !result.Valid {
+		return session.ErrFailedPrecondition
+	}
+	return nil
 }
 
 func (v *Validator) ValidateVM(ctx context.Context, b session.VMBinding) error {

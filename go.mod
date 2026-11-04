@@ -9,7 +9,7 @@ require (
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/zhangzhe-ctrl/ani-resource-service/api/instance/terminal v0.0.0-20261013075021-0937f5aa9c6c
 	github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console v0.0.0-20261023185414-0a53b99c8d9f
-	github.com/zhangzhe-ctrl/ani-session-gateway/api v0.1.1-0.20261024051540-811cc3839244
+	github.com/zhangzhe-ctrl/ani-session-gateway/api v0.1.1-0.20261104041726-98914216a996
 	go.opentelemetry.io/otel v1.46.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.46.0
 	go.opentelemetry.io/otel/sdk v1.46.0
@@ -84,6 +84,7 @@ require (
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
+	github.com/zhangzhe-ctrl/ani-resource-service/api/sandbox/terminal v0.0.0-20261104041614-a26e1a00c9f4
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0 // indirect
 	go.opentelemetry.io/otel/metric v1.46.0 // indirect

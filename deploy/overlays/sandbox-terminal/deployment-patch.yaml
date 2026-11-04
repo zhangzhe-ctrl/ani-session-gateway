@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ani-session-gateway
+spec:
+  template:
+    spec:
+      containers:
+        - name: session-gateway
+          env:
+            - name: RESOURCE_INSTANCE_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: ani-session-gateway-managed-targets
+                  key: resource-address
+            - name: RESOURCE_INSTANCE_SERVER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ani-session-gateway-managed-targets
+                  key: resource-server-name
+            - name: RESOURCE_INSTANCE_CLUSTER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: ani-session-gateway-managed-targets
+                  key: resource-cluster-id
+            - name: RESOURCE_INSTANCE_CA_FILE
+              value: /var/run/secrets/ani-session-gateway-resource/ca.crt
+            - name: RESOURCE_INSTANCE_CERT_FILE
+              value: /var/run/secrets/ani-session-gateway-resource/tls.crt
+            - name: RESOURCE_INSTANCE_KEY_FILE
+              value: /var/run/secrets/ani-session-gateway-resource/tls.key
+            - name: INSTANCE_CONTROL_CA_FILE
+              value: /var/run/secrets/ani-session-gateway-control/ca.crt
+            - name: INSTANCE_CONTROL_CERT_FILE
+              value: /var/run/secrets/ani-session-gateway-control/tls.crt
+            - name: INSTANCE_CONTROL_KEY_FILE
+              value: /var/run/secrets/ani-session-gateway-control/tls.key
+          volumeMounts:
+            - name: resource-client-tls
+              mountPath: /var/run/secrets/ani-session-gateway-resource
+              readOnly: true
+            - name: control-server-tls
+              mountPath: /var/run/secrets/ani-session-gateway-control
+              readOnly: true
+      volumes:
+        - name: resource-client-tls
+          secret:
+            secretName: ani-session-gateway-resource-client-tls
+            defaultMode: 0440
+        - name: control-server-tls
+          secret:
+            secretName: ani-session-gateway-control-server-tls
+            defaultMode: 0440

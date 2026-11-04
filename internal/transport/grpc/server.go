@@ -28,7 +28,7 @@ func (s *SessionServer) CreateSession(ctx context.Context, request *sessionv1.Cr
 	if s.manager == nil {
 		return nil, status.Error(codes.Unimplemented, "session creation is not configured")
 	}
-	if request != nil && request.Target != nil && (request.Target.InstanceBinding != nil || request.Target.VmBinding != nil) {
+	if request != nil && request.Target != nil && (request.Target.InstanceBinding != nil || request.Target.VmBinding != nil || request.Target.SandboxBinding != nil) {
 		if !authenticatedGovernance(ctx) {
 			return nil, status.Error(codes.PermissionDenied, "managed target requires authenticated Governance")
 		}
@@ -86,6 +86,10 @@ func mapRequest(request *sessionv1.CreateSessionRequest) (session.Request, error
 	mapped := session.Request{RequestID: request.RequestId, IdempotencyKey: request.IdempotencyKey, TenantID: request.Principal.TenantId, SubjectID: request.Principal.SubjectId, InstanceID: request.Target.InstanceId, WorkloadName: request.Target.WorkloadName}
 	if b := request.Target.InstanceBinding; b != nil {
 		mapped.InstanceBinding = session.InstanceBinding{Enabled: true, Version: b.Version, ClusterID: b.ClusterId, Namespace: b.Namespace, NotebookName: b.NotebookName, NotebookUID: b.NotebookUid, PodName: b.PodName, PodUID: b.PodUid, ContainerName: b.ContainerName, Shell: b.Shell}
+	}
+	if b := request.Target.SandboxBinding; b != nil {
+		mapped.SandboxID = b.SandboxId
+		mapped.SandboxBinding = session.SandboxBinding{Enabled: true, TenantID: b.TenantId, SandboxID: b.SandboxId, Version: b.Version, ClusterID: b.ClusterId, Namespace: b.Namespace, NamespaceUID: b.NamespaceUid, PodName: b.PodName, PodUID: b.PodUid, ContainerName: b.ContainerName, Shell: b.Shell}
 	}
 	if b := request.Target.VmBinding; b != nil {
 		mapped.VMBinding = session.VMBinding{Enabled: true, TenantID: b.TenantId, VMID: b.VmId, Version: b.Version, ClusterID: b.ClusterId, Namespace: b.Namespace, VMName: b.VmName, VMUID: b.VmUid, VMIName: b.VmiName, VMIUID: b.VmiUid, NamespaceUID: b.NamespaceUid}

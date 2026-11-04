@@ -12,3 +12,5 @@
 8. 部署前运行 `kubectl auth can-i --as=system:serviceaccount:ani-system:ani-session-gateway`：允许 `get/list pods`、`create pods/exec`、`get virtualmachineinstances.kubevirt.io`、`get virtualmachineinstances/console.subresources.kubevirt.io` 与 `get virtualmachineinstances/vnc.subresources.kubevirt.io`；拒绝 `get secrets`、`delete pods`、`update virtualmachines.kubevirt.io`。
 
 `network_only` gRPC 仅适用于已知风险的隔离测试环境。9090 只有 ClusterIP Service，NetworkPolicy 同时要求调用方 namespace 为 `ani-system` 且 Pod label 为 `app.kubernetes.io/name=ani-gateway`。
+
+For standalone Sandbox managed terminal connections, use the optional [sandbox-terminal overlay](overlays/sandbox-terminal/README.md). The base alone does not configure the Resource mTLS validation channel or Governance's managed-terminal ingress.

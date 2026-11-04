@@ -21,6 +21,7 @@ import (
 
 type ManagerConfig struct {
 	InstanceValidator   InstanceValidator
+	SandboxValidator    SandboxValidator
 	VMValidator         VMValidator
 	PublicWSBaseURL     *url.URL
 	TicketKey           [32]byte
@@ -35,6 +36,10 @@ type ManagerConfig struct {
 }
 type InstanceValidator interface {
 	Validate(context.Context, string, string, InstanceBinding) error
+}
+
+type SandboxValidator interface {
+	ValidateSandbox(context.Context, SandboxBinding) error
 }
 
 type VMValidator interface {
@@ -85,7 +90,7 @@ func (m *Manager) Issue(ctx context.Context, request Request) (Issued, error) {
 			m.config.Observer.SessionCreated(string(request.Mode), result)
 		}
 		if result != "success" && result != "replayed" {
-			slog.Warn("session_failed", "request_id", request.RequestID, "tenant_id", request.TenantID, "subject_id", request.SubjectID, "instance_id", request.InstanceID, "mode", request.Mode, "result", result)
+			slog.Warn("session_failed", "request_id", request.RequestID, "tenant_id", request.TenantID, "subject_id", request.SubjectID, "instance_id", request.InstanceID, "sandbox_id", request.SandboxID, "mode", request.Mode, "result", result)
 		}
 	}()
 	if err := validateRequest(request); err != nil {
@@ -100,6 +105,14 @@ func (m *Manager) Issue(ctx context.Context, request Request) (Issued, error) {
 			return Issued{}, ErrUnavailable
 		}
 		if e := m.config.InstanceValidator.Validate(ctx, request.TenantID, request.InstanceID, request.InstanceBinding); e != nil {
+			return Issued{}, e
+		}
+	}
+	if request.SandboxBinding.Enabled {
+		if m.config.SandboxValidator == nil {
+			return Issued{}, ErrUnavailable
+		}
+		if e := m.config.SandboxValidator.ValidateSandbox(ctx, request.SandboxBinding); e != nil {
 			return Issued{}, e
 		}
 	}
@@ -128,9 +141,10 @@ func (m *Manager) Issue(ctx context.Context, request Request) (Issued, error) {
 	}
 	candidate := Session{
 		InstanceBinding: request.InstanceBinding,
+		SandboxBinding:  request.SandboxBinding,
 		VMBinding:       request.VMBinding,
 		ID:              id, IdempotencyKey: request.IdempotencyKey, RequestFingerprint: Fingerprint(request), TicketDigest: digest, TicketCiphertext: ciphertext,
-		TenantID: request.TenantID, SubjectID: request.SubjectID, InstanceID: request.InstanceID, WorkloadName: request.WorkloadName,
+		TenantID: request.TenantID, SubjectID: request.SubjectID, InstanceID: request.InstanceID, SandboxID: request.SandboxID, WorkloadName: request.WorkloadName,
 		WorkloadKind: request.WorkloadKind, Mode: request.Mode, Container: request.Container, Command: append([]string(nil), request.Command...),
 		TTY: request.TTY, Rows: request.Rows, Cols: request.Cols, RequestedProtocol: request.RequestedProtocol, State: StateIssued,
 		CreatedAt: now, TicketExpiresAt: now.Add(m.config.TicketTTL), TombstoneExpiresAt: now.Add(m.config.TicketTTL + m.config.IdempotencyTTL),
@@ -150,10 +164,10 @@ func (m *Manager) Issue(ctx context.Context, request Request) (Issued, error) {
 	}
 	if replayed {
 		result = "replayed"
-		slog.Info("session_replayed", "request_id", request.RequestID, "session_id", stored.ID, "tenant_id", stored.TenantID, "subject_id", stored.SubjectID, "instance_id", stored.InstanceID, "mode", stored.Mode)
+		slog.Info("session_replayed", "request_id", request.RequestID, "session_id", stored.ID, "tenant_id", stored.TenantID, "subject_id", stored.SubjectID, "instance_id", stored.InstanceID, "sandbox_id", stored.SandboxID, "mode", stored.Mode)
 	} else {
 		result = "success"
-		slog.Info("session_issued", "request_id", request.RequestID, "session_id", stored.ID, "tenant_id", stored.TenantID, "subject_id", stored.SubjectID, "instance_id", stored.InstanceID, "mode", stored.Mode)
+		slog.Info("session_issued", "request_id", request.RequestID, "session_id", stored.ID, "tenant_id", stored.TenantID, "subject_id", stored.SubjectID, "instance_id", stored.InstanceID, "sandbox_id", stored.SandboxID, "mode", stored.Mode)
 	}
 	return Issued{Session: stored, Ticket: ticket, Replayed: replayed}, nil
 }
@@ -208,7 +222,7 @@ func (m *Manager) Claim(ctx context.Context, sessionID, ticket string) (ClaimedA
 		m.config.Observer.SessionClaimed(result)
 	}
 	if err == nil {
-		slog.Info("session_claimed", "session_id", lease.Session.ID, "tenant_id", lease.Session.TenantID, "subject_id", lease.Session.SubjectID, "instance_id", lease.Session.InstanceID, "mode", lease.Session.Mode)
+		slog.Info("session_claimed", "session_id", lease.Session.ID, "tenant_id", lease.Session.TenantID, "subject_id", lease.Session.SubjectID, "instance_id", lease.Session.InstanceID, "sandbox_id", lease.Session.SandboxID, "mode", lease.Session.Mode)
 	}
 	if err != nil {
 		return ClaimedAccess{}, err
@@ -221,9 +235,11 @@ func (m *Manager) Claim(ctx context.Context, sessionID, ticket string) (ClaimedA
 			TenantID:   lease.Session.TenantID,
 			SubjectID:  lease.Session.SubjectID,
 			InstanceID: lease.Session.InstanceID,
+			SandboxID:  lease.Session.SandboxID,
 		},
 		Target: Target{
 			InstanceBinding: lease.Session.InstanceBinding,
+			SandboxBinding:  lease.Session.SandboxBinding,
 			VMBinding:       lease.Session.VMBinding,
 			WorkloadName:    lease.Session.WorkloadName,
 			WorkloadKind:    lease.Session.WorkloadKind,
@@ -296,14 +312,21 @@ func randomID(source io.Reader) (string, error) {
 
 func validateRequest(r Request) error {
 	if b := r.VMBinding; b.Enabled {
-		if r.InstanceBinding.Enabled || r.WorkloadKind != WorkloadVM || r.Mode != ModeVNC || b.TenantID != r.TenantID || b.VMID != r.InstanceID || b.VMName != r.WorkloadName || !ValidVMBinding(b) {
+		if r.InstanceBinding.Enabled || r.SandboxBinding.Enabled || r.WorkloadKind != WorkloadVM || r.Mode != ModeVNC || b.TenantID != r.TenantID || b.VMID != r.InstanceID || b.VMName != r.WorkloadName || !ValidVMBinding(b) {
 			return ErrInvalidRequest
 		}
 	}
-	if b := r.InstanceBinding; b.Enabled && (b.Version < 1 || b.ClusterID == "" || b.Namespace == "" || b.NotebookName == "" || b.NotebookUID == "" || b.PodName == "" || b.PodUID == "" || b.ContainerName != r.Container || b.Shell == "" || r.Mode != ModeExec) {
+	if b := r.InstanceBinding; b.Enabled && (r.SandboxBinding.Enabled || b.Version < 1 || b.ClusterID == "" || b.Namespace == "" || b.NotebookName == "" || b.NotebookUID == "" || b.PodName == "" || b.PodUID == "" || b.ContainerName != r.Container || b.Shell == "" || r.Mode != ModeExec) {
 		return ErrInvalidRequest
 	}
-	if r.IdempotencyKey == "" || r.TenantID == "" || r.SubjectID == "" || r.InstanceID == "" || r.WorkloadName == "" {
+	if b := r.SandboxBinding; b.Enabled {
+		if r.InstanceBinding.Enabled || r.VMBinding.Enabled || r.InstanceID != "" || b.TenantID != r.TenantID || b.SandboxID != r.SandboxID || b.PodName != r.WorkloadName || b.ContainerName != r.Container || r.WorkloadKind != WorkloadSandbox || r.Mode != ModeExec || !ValidSandboxBinding(b) {
+			return ErrInvalidRequest
+		}
+	} else if r.SandboxID != "" || r.InstanceID == "" {
+		return ErrInvalidRequest
+	}
+	if r.IdempotencyKey == "" || r.TenantID == "" || r.SubjectID == "" || r.WorkloadName == "" {
 		return fmt.Errorf("%w: idempotency key, principal, instance, and workload are required", ErrInvalidRequest)
 	}
 	switch r.Mode {
@@ -351,6 +374,12 @@ func Fingerprint(r Request) [32]byte {
 			write(v)
 		}
 	}
+	if b := r.SandboxBinding; b.Enabled {
+		write("sandbox.terminal.v1")
+		for _, v := range []string{b.TenantID, b.SandboxID, fmt.Sprint(b.Version), b.ClusterID, b.Namespace, b.NamespaceUID, b.PodName, b.PodUID, b.ContainerName, b.Shell} {
+			write(v)
+		}
+	}
 	if b := r.VMBinding; b.Enabled {
 		write("vm.console.v1")
 		for _, v := range []string{b.TenantID, b.VMID, fmt.Sprint(b.Version), b.ClusterID, b.Namespace, b.VMName, b.VMUID, b.VMIName, b.VMIUID, b.NamespaceUID} {
@@ -360,6 +389,10 @@ func Fingerprint(r Request) [32]byte {
 	var result [32]byte
 	copy(result[:], h.Sum(nil))
 	return result
+}
+
+func ValidSandboxBinding(b SandboxBinding) bool {
+	return b.Enabled && b.TenantID != "" && b.SandboxID != "" && b.Version > 0 && b.ClusterID != "" && b.Namespace != "" && b.NamespaceUID != "" && b.PodName != "" && b.PodUID != "" && b.ContainerName != "" && b.Shell == "/bin/sh"
 }
 
 func ValidVMBinding(b VMBinding) bool {

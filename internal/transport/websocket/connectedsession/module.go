@@ -67,6 +67,7 @@ type SafeFacts struct {
 	TenantID   string
 	SubjectID  string
 	InstanceID string
+	SandboxID  string
 	Mode       session.Mode
 }
 
@@ -283,7 +284,7 @@ func (m *Module) complete(ctx context.Context, accepted Accepted, observation Ob
 	defer cancel()
 	if err := m.manager.Close(closeCtx, accepted.Access.SessionID, accepted.Access.LeaseID, string(outcome)); err != nil {
 		facts := safeFacts(accepted.Access)
-		slog.Warn("session_lease_cleanup_failed", "session_id", facts.SessionID, "tenant_id", facts.TenantID, "subject_id", facts.SubjectID, "instance_id", facts.InstanceID, "mode", facts.Mode, "outcome", outcome)
+		slog.Warn("session_lease_cleanup_failed", "session_id", facts.SessionID, "tenant_id", facts.TenantID, "subject_id", facts.SubjectID, "instance_id", facts.InstanceID, "sandbox_id", facts.SandboxID, "mode", facts.Mode, "outcome", outcome)
 	}
 	finish := Finish{Outcome: outcome, Connected: !connectedAt.IsZero(), BytesIn: bytesIn, BytesOut: bytesOut}
 	if finish.Connected {
@@ -295,7 +296,7 @@ func (m *Module) complete(ctx context.Context, accepted Accepted, observation Ob
 func (m *Module) closeRuntime(stream io.Closer, access session.ClaimedAccess) {
 	if err := stream.Close(); err != nil {
 		facts := safeFacts(access)
-		slog.Warn("session_runtime_cleanup_failed", "session_id", facts.SessionID, "tenant_id", facts.TenantID, "subject_id", facts.SubjectID, "instance_id", facts.InstanceID, "mode", facts.Mode)
+		slog.Warn("session_runtime_cleanup_failed", "session_id", facts.SessionID, "tenant_id", facts.TenantID, "subject_id", facts.SubjectID, "instance_id", facts.InstanceID, "sandbox_id", facts.SandboxID, "mode", facts.Mode)
 	}
 }
 
@@ -456,7 +457,7 @@ func terminalFailure(outcome Outcome) (string, string) {
 }
 
 func safeFacts(access session.ClaimedAccess) SafeFacts {
-	return SafeFacts{SessionID: access.SessionID, TenantID: access.Identity.TenantID, SubjectID: access.Identity.SubjectID, InstanceID: access.Identity.InstanceID, Mode: access.Mode}
+	return SafeFacts{SessionID: access.SessionID, TenantID: access.Identity.TenantID, SubjectID: access.Identity.SubjectID, InstanceID: access.Identity.InstanceID, SandboxID: access.Identity.SandboxID, Mode: access.Mode}
 }
 
 func resetTimer(timer Timer, after time.Duration) {

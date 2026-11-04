@@ -13,6 +13,7 @@ import (
 	"github.com/zhangzhe-ctrl/ani-session-gateway/internal/session"
 	"go.opentelemetry.io/otel"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -24,6 +25,8 @@ type executorFactory func(*rest.Config, string, *url.URL) (remotecommand.Executo
 
 type ExecAdapter struct {
 	instanceValidator session.InstanceValidator
+	sandboxValidator  session.SandboxValidator
+	coreClient        typedcorev1.CoreV1Interface
 	instanceClusterID string
 	resolver          *PodResolver
 	config            *rest.Config
@@ -37,8 +40,12 @@ func (a *ExecAdapter) ConfigureInstanceValidator(v session.InstanceValidator, cl
 	a.instanceClusterID = cluster
 }
 
+func (a *ExecAdapter) ConfigureSandboxValidator(v session.SandboxValidator) {
+	a.sandboxValidator = v
+}
+
 func NewExecAdapter(config *rest.Config, client typedcorev1.CoreV1Interface, requestTimeout time.Duration) *ExecAdapter {
-	return &ExecAdapter{resolver: NewPodResolver(client), config: rest.CopyConfig(config), restClient: client.RESTClient(), newExecutor: remotecommand.NewSPDYExecutor, requestTimeout: requestTimeout}
+	return &ExecAdapter{resolver: NewPodResolver(client), coreClient: client, config: rest.CopyConfig(config), restClient: client.RESTClient(), newExecutor: remotecommand.NewSPDYExecutor, requestTimeout: requestTimeout}
 }
 
 func (a *ExecAdapter) OpenExec(ctx context.Context, target runtimeport.ExecTarget, size session.TerminalSize) (runtimeport.ExecStream, error) {
@@ -57,9 +64,32 @@ func (a *ExecAdapter) OpenExec(ctx context.Context, target runtimeport.ExecTarge
 			return nil, runtimeport.ErrTargetNotReady
 		}
 	}
+	if target.SandboxBinding.Enabled {
+		b := target.SandboxBinding
+		if a.sandboxValidator == nil || a.coreClient == nil || a.instanceClusterID == "" || a.instanceClusterID != b.ClusterID || !session.ValidSandboxBinding(b) || b.TenantID != target.TenantID || b.SandboxID != target.SandboxID || target.InstanceID != "" || b.ContainerName != target.Container {
+			return nil, runtimeport.ErrInvalidTarget
+		}
+		if e := a.sandboxValidator.ValidateSandbox(preflightCtx, b); e != nil {
+			return nil, runtimeport.ErrTargetNotReady
+		}
+		ns, e := a.coreClient.Namespaces().Get(preflightCtx, b.Namespace, metav1.GetOptions{})
+		if e != nil {
+			return nil, runtimeport.ErrUnavailable
+		}
+		if string(ns.UID) != b.NamespaceUID {
+			return nil, runtimeport.ErrTargetChanged
+		}
+	}
 	resolved, err := a.resolver.Resolve(preflightCtx, target)
 	if err != nil {
 		return nil, err
+	}
+	if target.SandboxBinding.Enabled {
+		// Recheck after provider reads. This narrows but cannot eliminate a
+		// concurrent pause/delete acceptance before the Kubernetes exec request.
+		if e := a.sandboxValidator.ValidateSandbox(preflightCtx, target.SandboxBinding); e != nil {
+			return nil, runtimeport.ErrTargetNotReady
+		}
 	}
 	command := append([]string(nil), target.Command...)
 	if len(command) == 0 {
@@ -69,6 +99,9 @@ func (a *ExecAdapter) OpenExec(ctx context.Context, target runtimeport.ExecTarge
 		// Exec has no Kubernetes UID precondition. The downward-API UID guard
 		// also rejects replacement Pods that appear between GET and exec.
 		command = append([]string{target.InstanceBinding.Shell, "-c", `[ "$ANI_INSTANCE_POD_UID" = "$1" ] || exit 126; shift; exec "$@"`, "instance-uid-guard", target.InstanceBinding.PodUID}, command...)
+	}
+	if target.SandboxBinding.Enabled {
+		command = append([]string{target.SandboxBinding.Shell, "-c", `test "${ANI_SANDBOX_POD_UID:-}" = "$1" || exit 125; shift; exec "$@"`, "sandbox-uid-guard", target.SandboxBinding.PodUID}, command...)
 	}
 	requestURL := a.restClient.Post().Namespace(resolved.Namespace).Resource("pods").Name(resolved.Name).SubResource("exec").VersionedParams(&corev1.PodExecOptions{Container: resolved.Container, Command: command, Stdin: true, Stdout: true, Stderr: !target.TTY, TTY: target.TTY}, scheme.ParameterCodec).URL()
 	executor, err := a.newExecutor(a.config, http.MethodPost, requestURL)

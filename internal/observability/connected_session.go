@@ -85,6 +85,7 @@ func (o *connectedSessionObservation) safeLogArgs() []any {
 		"tenant_id", o.facts.TenantID,
 		"subject_id", o.facts.SubjectID,
 		"instance_id", o.facts.InstanceID,
+		"sandbox_id", o.facts.SandboxID,
 		"mode", o.facts.Mode,
 	}
 }

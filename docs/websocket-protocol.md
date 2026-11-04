@@ -79,3 +79,9 @@ ticket still runs the native and Resource checks above.
 | `invalid_start` | Internal caller violates the accepted-connection contract | best-effort `1011` |
 
 `ani_session_bytes_total` counts only runtime payload bytes: `stdin.data`, `stdout.data`, and `stderr.data` for terminal sessions, and raw RFB bytes for VNC. JSON envelopes, close frames, pings, and protocol metadata are excluded.
+
+## Standalone Sandbox terminal
+
+Governance obtains a Resource-owned Sandbox terminal binding using the tenant and `sandbox_id`. It calls `CreateSession` as the authenticated Governance peer with `Target.sandbox_binding`, leaves `Target.instance_id` empty, and returns the resulting `session_id`, one-time connect URL and expiry. A Sandbox binding is exclusive with Instance and VM bindings. Resource validates the captured version and target both on issue and at stream open; Session Gateway also checks the exact namespace UID, Pod UID and tenant/owner labels. The exec command includes the Pod UID downward-API guard. A change detected during either preflight validation is rejected; UID guarding rejects an ordinary replacement Pod. A Pause or Delete accepted after the last validation can still race the Kubernetes exec request, and an existing session is not actively disconnected until its underlying Pod stream ends. The existing terminal JSON WebSocket protocol remains unchanged.
+
+The Resource `api/sandbox/terminal` module is a local-workspace-only unpublished dependency in this development snapshot. The `v0.0.0` requirement must be replaced with an actual published fixed version before publishing the Session Gateway API, building independently or deploying this change. Live Sandbox terminal acceptance and deployment are not verified here.

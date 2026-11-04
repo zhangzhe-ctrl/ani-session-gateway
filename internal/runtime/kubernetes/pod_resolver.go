@@ -51,10 +51,19 @@ func (r *PodResolver) Resolve(ctx context.Context, target runtimeport.ExecTarget
 	}
 	namespace, err := NamespaceForTenant(target.TenantID)
 	managed := target.InstanceBinding.Enabled
+	sandbox := target.SandboxBinding.Enabled
 	if managed {
 		namespace = target.InstanceBinding.Namespace
 		err = nil
 		if len(validation.IsDNS1123Label(namespace)) != 0 {
+			return ResolvedPod{}, runtimeport.ErrInvalidTarget
+		}
+	}
+	if sandbox {
+		b := target.SandboxBinding
+		namespace = b.Namespace
+		err = nil
+		if managed || target.WorkloadKind != session.WorkloadSandbox || b.TenantID != target.TenantID || b.SandboxID != target.SandboxID || target.InstanceID != "" || namespace != "tenant-"+target.TenantID || len(validation.IsDNS1123Label(namespace)) != 0 {
 			return ResolvedPod{}, runtimeport.ErrInvalidTarget
 		}
 	}
@@ -64,6 +73,9 @@ func (r *PodResolver) Resolve(ctx context.Context, target runtimeport.ExecTarget
 	selector := labels.Set{tenantLabel: target.TenantID, instanceLabel: target.WorkloadName}.AsSelector().String()
 	if managed {
 		selector = labels.Set{"accelerator.ani.io/resource-tenant-id": target.TenantID, "accelerator.ani.io/resource-id": target.InstanceID, "accelerator.ani.io/owner-service": "ani-resource-service"}.AsSelector().String()
+	}
+	if sandbox {
+		selector = labels.Set{"ani.io/tenant-id": target.TenantID, "ani.io/sandbox-owner": target.SandboxID, "ani.io/owner-service": "ani-resource-service"}.AsSelector().String()
 	}
 	pods, err := r.client.ListPods(ctx, namespace, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
@@ -75,6 +87,11 @@ func (r *PodResolver) Resolve(ctx context.Context, target runtimeport.ExecTarget
 		if managed {
 			b := target.InstanceBinding
 			if pod.Namespace != namespace || pod.Name != b.PodName || string(pod.UID) != b.PodUID || pod.Labels["accelerator.ani.io/resource-tenant-id"] != target.TenantID || pod.Labels["accelerator.ani.io/resource-id"] != target.InstanceID || pod.Labels["accelerator.ani.io/owner-service"] != "ani-resource-service" {
+				continue
+			}
+		} else if sandbox {
+			b := target.SandboxBinding
+			if pod.Namespace != namespace || pod.Name != b.PodName || string(pod.UID) != b.PodUID || pod.Labels["ani.io/tenant-id"] != target.TenantID || pod.Labels["ani.io/sandbox-owner"] != target.SandboxID || pod.Labels["ani.io/owner-service"] != "ani-resource-service" {
 				continue
 			}
 		} else if pod.Labels[tenantLabel] != target.TenantID || pod.Labels[instanceLabel] != target.WorkloadName {
@@ -98,7 +115,7 @@ func (r *PodResolver) Resolve(ctx context.Context, target runtimeport.ExecTarget
 		return eligible[i].CreationTimestamp.After(eligible[j].CreationTimestamp.Time)
 	})
 	selected := eligible[0]
-	if managed && len(eligible) != 1 {
+	if (managed || sandbox) && len(eligible) != 1 {
 		return ResolvedPod{}, runtimeport.ErrInvalidTarget
 	}
 	container := target.Container

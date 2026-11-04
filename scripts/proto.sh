@@ -5,11 +5,14 @@ root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$root"
 dependency="$(go list -m -f '{{.Dir}}' github.com/zhangzhe-ctrl/ani-resource-service/api/vm/console)"
 test -f "$dependency/v1/console.proto"
+sandbox_dependency="$(go list -m -f '{{.Dir}}' github.com/zhangzhe-ctrl/ani-resource-service/api/sandbox/terminal)"
+test -f "$sandbox_dependency/v1/terminal.proto"
 workspace="$(mktemp -d)"
 trap 'rm -rf "$workspace"' EXIT INT TERM
-mkdir -p "$workspace/vm/console/v1"
+mkdir -p "$workspace/vm/console/v1" "$workspace/sandbox/terminal/v1"
 cp -R api/proto/session "$workspace/"
 cp "$dependency/v1/console.proto" "$workspace/vm/console/v1/console.proto"
+cp "$sandbox_dependency/v1/terminal.proto" "$workspace/sandbox/terminal/v1/terminal.proto"
 cp buf.yaml "$workspace/buf.yaml"
 # The dependency source is read from its Go module. It is never copied into
 # the repository, generated as Session Gateway code, or kept as a second API.

@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ani-session-gateway-managed-terminal
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ani-session-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ani-system
+          podSelector:
+            matchLabels:
+              app: ani-governance
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ani-system
+          podSelector:
+            matchLabels:
+              app: ani-resource-service
+      ports:
+        - protocol: TCP
+          port: 9446
