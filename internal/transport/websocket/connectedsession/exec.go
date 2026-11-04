@@ -29,6 +29,8 @@ func (m *Module) openExecStream(ctx context.Context, access session.ClaimedAcces
 	}
 	target := runtimeport.ExecTarget{
 		InstanceID:      access.Identity.InstanceID,
+		SandboxID:       access.Identity.SandboxID,
+		SandboxBinding:  access.Target.SandboxBinding,
 		InstanceBinding: access.Target.InstanceBinding,
 		TenantID:        access.Identity.TenantID,
 		WorkloadName:    access.Target.WorkloadName,

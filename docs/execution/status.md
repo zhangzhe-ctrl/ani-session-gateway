@@ -52,3 +52,11 @@ Full commands and evidence: `docs/execution/records/SG-P0-LOCAL.md`, `docs/execu
 - LIVE-1：用户单独授权 SSH、测试 namespace、fixtures、rollout、删除范围和回滚。
 - 当前部署：用户已一次性授权部署到 `ani-system`，该授权已消费；继续执行 fixture 创建、故障注入、删除或完整 LIVE-1 仍需单独授权。
 - Connected Session 发布：本次 main push、镜像发布与 `ani-system` 部署授权已消费；后续 fixture、故障注入、删除、回滚或再次部署仍需新的明确授权。
+
+## Standalone Sandbox terminal (development snapshot, 2026-11-04)
+
+- Base: `origin/main` `6f2bf71`; isolated branch `codex/sandbox-terminal-20261104`.
+- Independent Sandbox terminals use `sandbox_id` and an immutable Resource binding. Instance and VM targets retain their existing paths. Issue and stream-open validation, namespace and Pod UID checks, and the in-container Pod UID guard are implemented in this worktree.
+- Session Gateway's API module must be published at a fixed version before Governance can consume it without a private workspace. An optional managed-terminal deployment overlay scopes Governance ingress and Resource egress and references separately provisioned mTLS material. This overlay was not applied in the 66 test.
+- Local Resource API, Session Gateway root and API modules were composed with `/tmp/sg-sandbox-terminal-20261104.work`; its temporary version-specific replacement selects the unpublished Resource module, and its genproto replacement avoids the existing ambiguous split-module graph. Pinned protobuf tools are in `/tmp/sg-sandbox-tools`. Local results and remaining checks are recorded in `records/SANDBOX-TERMINAL-20261104.md`.
+- The 2026-11-04 isolated 66 acceptance exercised Governance-to-Resource-to-Session Gateway mTLS, Redis, Kubernetes exec and a WebSocket client: interactive input/output, resize, ticket replay, wrong version and cross-tenant denial passed. This was not a browser UI test. The terminal API and permission were restored to OFF after testing. The tested images were built from a private workspace; see the record for scope and release limitations.

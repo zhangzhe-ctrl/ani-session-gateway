@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ani-system
+resources:
+  - ../../base
+  - network-policy.yaml
+patches:
+  - path: deployment-patch.yaml

@@ -73,7 +73,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(request.Context()), h.config.CleanupTimeout)
 		defer cancel()
 		if err := h.manager.Close(closeCtx, access.SessionID, access.LeaseID, reason); err != nil {
-			slog.Warn("session_admission_cleanup_failed", "session_id", access.SessionID, "tenant_id", access.Identity.TenantID, "subject_id", access.Identity.SubjectID, "instance_id", access.Identity.InstanceID, "mode", access.Mode, "reason", reason)
+			slog.Warn("session_admission_cleanup_failed", "session_id", access.SessionID, "tenant_id", access.Identity.TenantID, "subject_id", access.Identity.SubjectID, "instance_id", access.Identity.InstanceID, "sandbox_id", access.Identity.SandboxID, "mode", access.Mode, "reason", reason)
 		}
 	}()
 

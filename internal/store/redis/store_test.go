@@ -106,3 +106,32 @@ func TestManagedInstanceRedisBindingSurvivesManagerRestart(t *testing.T) {
 		t.Fatal("persisted target binding lost on restart", e)
 	}
 }
+
+type sandboxAuthority struct{}
+
+func (sandboxAuthority) ValidateSandbox(context.Context, session.SandboxBinding) error { return nil }
+func TestStandaloneSandboxRedisBindingSurvivesRestart(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	defer client.Close()
+	base, _ := url.Parse("ws://127.0.0.1/api/v1/realtime")
+	config := session.ManagerConfig{SandboxValidator: sandboxAuthority{}, PublicWSBaseURL: base, TicketTTL: time.Minute, SessionMaxDuration: time.Minute, IdempotencyTTL: time.Minute, MaxActive: 5, MaxActivePerSubject: 2}
+	manager, err := session.NewManager(New(client), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := session.SandboxBinding{Enabled: true, TenantID: "tenant", SandboxID: "sandbox", Version: 4, ClusterID: "cluster", Namespace: "tenant-tenant", NamespaceUID: "ns-uid", PodName: "sandbox-sandbox", PodUID: "pod-uid", ContainerName: "sandbox", Shell: "/bin/sh"}
+	req := session.Request{IdempotencyKey: "sandbox-intent", TenantID: "tenant", SubjectID: "subject", SandboxID: "sandbox", WorkloadName: binding.PodName, WorkloadKind: session.WorkloadSandbox, Mode: session.ModeExec, Container: "sandbox", Rows: 24, Cols: 80, SandboxBinding: binding}
+	issued, err := manager.Issue(t.Context(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err = session.NewManager(New(client), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	access, err := manager.Claim(t.Context(), issued.Session.ID, issued.Ticket)
+	if err != nil || access.Identity.SandboxID != req.SandboxID || access.Identity.InstanceID != "" || access.Target.SandboxBinding != binding {
+		t.Fatalf("standalone identity lost: %v", err)
+	}
+}

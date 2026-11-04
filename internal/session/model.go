@@ -31,12 +31,14 @@ type TerminalSize struct{ Rows, Cols uint16 }
 
 type Request struct {
 	InstanceBinding   InstanceBinding
+	SandboxBinding    SandboxBinding
 	VMBinding         VMBinding
 	RequestID         string
 	IdempotencyKey    string
 	TenantID          string
 	SubjectID         string
 	InstanceID        string
+	SandboxID         string
 	WorkloadName      string
 	WorkloadKind      WorkloadKind
 	Mode              Mode
@@ -50,6 +52,7 @@ type Request struct {
 
 type Session struct {
 	InstanceBinding    InstanceBinding
+	SandboxBinding     SandboxBinding
 	VMBinding          VMBinding
 	ID                 string
 	IdempotencyKey     string
@@ -59,6 +62,7 @@ type Session struct {
 	TenantID           string
 	SubjectID          string
 	InstanceID         string
+	SandboxID          string
 	WorkloadName       string
 	WorkloadKind       WorkloadKind
 	Mode               Mode
@@ -114,10 +118,12 @@ type Identity struct {
 	TenantID   string
 	SubjectID  string
 	InstanceID string
+	SandboxID  string
 }
 
 type Target struct {
 	InstanceBinding InstanceBinding
+	SandboxBinding  SandboxBinding
 	VMBinding       VMBinding
 	WorkloadName    string
 	WorkloadKind    WorkloadKind
@@ -127,6 +133,15 @@ type InstanceBinding struct {
 	Enabled                                                                                bool
 	Version                                                                                int64
 	ClusterID, Namespace, NotebookName, NotebookUID, PodName, PodUID, ContainerName, Shell string
+}
+
+// SandboxBinding is the frozen identity of a standalone Sandbox. It never
+// references the legacy Instance resource.
+type SandboxBinding struct {
+	Enabled                                                                   bool
+	TenantID, SandboxID                                                       string
+	Version                                                                   int64
+	ClusterID, Namespace, NamespaceUID, PodName, PodUID, ContainerName, Shell string
 }
 
 // VMBinding is the frozen Resource identity. No guest readiness or address is

@@ -231,7 +231,7 @@ func (s *Store) subjectLeasesKey(subject string) string {
 	return s.prefix + "subject:" + hex.EncodeToString(digest[:]) + ":leases"
 }
 
-var fieldOrder = []string{"id", "idempotency_key", "fingerprint", "ticket_digest", "ticket_ciphertext", "tenant_id", "subject_id", "instance_id", "workload_name", "workload_kind", "mode", "container", "command", "tty", "rows", "cols", "requested_protocol", "state", "created_at", "ticket_expires_at", "expires_at", "tombstone_expires_at", "claimed_at", "closed_at", "close_reason", "lease_id", "instance_binding", "vm_binding"}
+var fieldOrder = []string{"id", "idempotency_key", "fingerprint", "ticket_digest", "ticket_ciphertext", "tenant_id", "subject_id", "instance_id", "workload_name", "workload_kind", "mode", "container", "command", "tty", "rows", "cols", "requested_protocol", "state", "created_at", "ticket_expires_at", "expires_at", "tombstone_expires_at", "claimed_at", "closed_at", "close_reason", "lease_id", "instance_binding", "vm_binding", "sandbox_id", "sandbox_binding"}
 
 func encode(value session.Session) (map[string]string, error) {
 	command, err := json.Marshal(value.Command)
@@ -246,7 +246,13 @@ func encode(value session.Session) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	sandboxBinding, err := json.Marshal(value.SandboxBinding)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]string{
+		"sandbox_id":       value.SandboxID,
+		"sandbox_binding":  string(sandboxBinding),
 		"instance_binding": string(binding),
 		"vm_binding":       string(vmBinding),
 		"id":               value.ID, "idempotency_key": value.IdempotencyKey, "fingerprint": hex.EncodeToString(value.RequestFingerprint[:]), "ticket_digest": hex.EncodeToString(value.TicketDigest[:]), "ticket_ciphertext": base64.RawStdEncoding.EncodeToString(value.TicketCiphertext),
@@ -258,6 +264,12 @@ func encode(value session.Session) (map[string]string, error) {
 
 func decode(fields map[string]string) (session.Session, error) {
 	var value session.Session
+	value.SandboxID = fields["sandbox_id"]
+	if raw := fields["sandbox_binding"]; raw != "" {
+		if err := json.Unmarshal([]byte(raw), &value.SandboxBinding); err != nil {
+			return value, err
+		}
+	}
 	if raw := fields["vm_binding"]; raw != "" {
 		if err := json.Unmarshal([]byte(raw), &value.VMBinding); err != nil {
 			return value, err

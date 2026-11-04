@@ -20,6 +20,8 @@ var (
 
 type ExecTarget struct {
 	InstanceID      string
+	SandboxID       string
+	SandboxBinding  session.SandboxBinding
 	InstanceBinding session.InstanceBinding
 	TenantID        string
 	WorkloadName    string
